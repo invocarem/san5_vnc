@@ -5,8 +5,8 @@ Coordinates are window-relative (origin top-left), typically 0..800 x 0..600.
 Uses xdotool on the VNC display started by x11vnc_start.sh.
 
 Examples:
-  ./dosbox_mouse.py -a move -p 400 323
-  ./dosbox_mouse.py -a click -p 400 323
+  python3 skills/dosbox-mouse/scripts/dosbox_mouse.py -a move -p 400 323
+  python3 skills/dosbox-mouse/scripts/dosbox_mouse.py -a click -p 400 323
   ./dosbox_mouse.py -a rclick -p 400 323
   ./dosbox_mouse.py -a grab
   ./dosbox_mouse.py -a release

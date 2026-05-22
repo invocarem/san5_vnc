@@ -5,7 +5,9 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+WORKSPACE_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 CONF="${SCRIPT_DIR}/san5-dosbox.conf"
+MOUSE_SCRIPT="${SAN5_MOUSE_SCRIPT:-${WORKSPACE_ROOT}/skills/dosbox-mouse/scripts/dosbox_mouse.py}"
 GAME_DIR="${SAN5_GAME_DIR:-${HOME}/Games/san5}"
 
 # Match x11vnc_start.sh virtual display
@@ -91,14 +93,14 @@ fi
 if [[ "${SAN5_GRAB_MOUSE:-0}" == 1 ]]; then
   sleep 1
   if [[ -n "${SAN5_DISMISS_DIALOG:-}" ]]; then
-    python3 "${SCRIPT_DIR}/dosbox_mouse.py" -a dismiss || true
+    python3 "${MOUSE_SCRIPT}" -a dismiss || true
   else
-    python3 "${SCRIPT_DIR}/dosbox_mouse.py" -a grab || true
+    python3 "${MOUSE_SCRIPT}" -a grab || true
   fi
 fi
 
 HOST_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
-MOUSE="${SCRIPT_DIR}/dosbox_mouse.py"
+MOUSE="${MOUSE_SCRIPT}"
 echo ""
 echo "san5 launched. Confirm via VNC:"
 echo "  ${HOST_IP:-<host>}:5999  (display ${DISPLAY})"
