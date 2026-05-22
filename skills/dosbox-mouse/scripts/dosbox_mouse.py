@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Move, click, and grab the mouse inside the DOSBox window on the VNC display.
 
-Coordinates are window-relative (origin top-left), typically 0..800 x 0..600.
+Coordinates are window-relative (origin top-left), typically 0..1024 x 0..768.
 Uses xdotool on the VNC display started by x11vnc_start.sh.
 
 Examples:
@@ -39,9 +39,12 @@ ACTIONS = (
 BUTTON = {"click": 1, "rclick": 3, "grab": 1, "dismiss": 1}
 
 # san5-dosbox.conf windowresolution; actual X11 window may differ (e.g. 640x400)
-LOGICAL_W = int(os.environ.get("SAN5_LOGICAL_WIDTH", "800"))
-LOGICAL_H = int(os.environ.get("SAN5_LOGICAL_HEIGHT", "600"))
+LOGICAL_W = int(os.environ.get("SAN5_LOGICAL_WIDTH", "1024"))
+LOGICAL_H = int(os.environ.get("SAN5_LOGICAL_HEIGHT", "768"))
 CLICK_DELAY_MS = int(os.environ.get("SAN5_CLICK_DELAY_MS", "50"))
+# Screen-level mousemove --sync hangs ~15s on Xvfb; window --sync is fast and enough for clicks.
+CLICK_SCREEN_SYNC = os.environ.get("SAN5_CLICK_SCREEN_SYNC", "0") == "1"
+CLICK_SCREEN_NUDGE = os.environ.get("SAN5_CLICK_SCREEN_NUDGE", "1") == "1"
 
 
 def _env() -> dict[str, str]:
@@ -130,14 +133,13 @@ def move_mouse(win: str, x: int, y: int, verbose: bool = False) -> None:
 
 
 def wake_mouse(win: str, x: int, y: int, verbose: bool = False) -> None:
-    """Tiny screen jiggle so DOSBox/SDL gets motion events and redraws the game cursor."""
+    """Tiny jiggle so DOSBox/SDL gets motion events and redraws the game cursor."""
     if os.environ.get("SAN5_WAKE_CURSOR", "1") == "0":
         return
-    sx, sy = screen_coords(win, x, y, verbose=verbose)
     for dx, dy in ((2, 0), (-2, 0), (0, 2), (0, -2)):
-        _run("mousemove", "--sync", str(sx + dx), str(sy + dy), verbose=verbose)
+        _run("mousemove", "--window", win, str(x + dx), str(y + dy), verbose=verbose)
         time.sleep(0.01)
-    _run("mousemove", "--sync", str(sx), str(sy), verbose=verbose)
+    _run("mousemove", "--window", win, "--sync", str(x), str(y), verbose=verbose)
 
 
 def set_x11_cursor(visible: bool, verbose: bool = False) -> None:
@@ -173,12 +175,16 @@ def click_mouse(
     button: int = 1,
     verbose: bool = False,
 ) -> None:
-    """Move then click using screen coords + mousedown/mouseup (SDL/DOSBox reliable)."""
+    """Move (window --sync) then mousedown/mouseup at the target."""
     move_mouse(win, x, y, verbose=verbose)
     time.sleep(CLICK_DELAY_MS / 1000)
     sx, sy = screen_coords(win, x, y, verbose=verbose)
-    _run("mousemove", "--sync", str(sx), str(sy), verbose=verbose)
-    time.sleep(0.02)
+    if CLICK_SCREEN_SYNC:
+        _run("mousemove", "--sync", str(sx), str(sy), verbose=verbose)
+        time.sleep(0.02)
+    elif CLICK_SCREEN_NUDGE:
+        _run("mousemove", str(sx), str(sy), verbose=verbose)
+        time.sleep(0.03)
     _run("mousedown", str(button), verbose=verbose)
     time.sleep(CLICK_DELAY_MS / 1000)
     _run("mouseup", str(button), verbose=verbose)
@@ -245,8 +251,8 @@ def validate_args(args: argparse.Namespace) -> None:
         print(f"error: -a {action} requires -p X Y", file=sys.stderr)
         sys.exit(2)
 
-    if action == "grab" and (x is not None or y is not None):
-        print("error: -a grab does not take -p (uses current mouse position)", file=sys.stderr)
+    if action == "grab" and (x is None) != (y is None):
+        print("error: -p needs both X and Y", file=sys.stderr)
         sys.exit(2)
 
     if action in ("release", "dismiss", "debug", "show-cursor", "hide-cursor") and (
@@ -321,7 +327,7 @@ def run_action(args: argparse.Namespace) -> None:
         print(f"moved to ({x}, {y}) inside DOSBox window {win}")
         return
 
-    use_current = action == "grab"
+    use_current = action == "grab" and raw_x is None and raw_y is None
     dismiss = action == "dismiss"
     x, y = resolve_target(
         win,
@@ -374,7 +380,7 @@ def build_parser() -> argparse.ArgumentParser:
         required=True,
         choices=ACTIONS,
         metavar="ACTION",
-        help="move | click | rclick | grab | release | dismiss | debug | show-cursor | hide-cursor",
+        help="move | click | rclick | grab | release | dismiss | debug | show-cursor | hide-cursor (grab: click at -p or current pos)",
     )
     p.add_argument(
         "-p",
@@ -382,7 +388,7 @@ def build_parser() -> argparse.ArgumentParser:
         nargs=2,
         type=int,
         metavar=("X", "Y"),
-        help="window-relative coordinates (required for move, click, rclick)",
+        help="window-relative coordinates (required for move, click, rclick; optional for grab)",
     )
     p.add_argument(
         "-v",

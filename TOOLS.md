@@ -37,8 +37,11 @@ Not stored in git — install ROMs/data locally.
 | Item | Value |
 |------|-------|
 | Display | `:99` (`SAN5_DISPLAY`) |
+| Screen / window | `1024×768` (`SAN5_SCREEN_WIDTH` / `SAN5_SCREEN_HEIGHT`) |
+| DOSBox position | `(0,0)` (`SAN5_WINDOW_X` / `SAN5_WINDOW_Y`) |
 | Default capture path | `san5_screenshot.png` (gitignored) |
-| Capture | `./skills/screenshot/scripts/san5_capture.sh [path]` |
+| Capture | `scrot -D :99 -a 0,0,1024,768 san5_screenshot.png` |
+| First 確認 click | end of `san5_start.sh` (`SAN5_MOUSE_SYNC=1`, default) |
 | Click helper | `python3 skills/vision-click/scripts/click_target.py --bbox …` |
 
-Vision analysis uses the agent multimodal read of the PNG (no external API in-repo). Coordinates are window-relative 800×600 inside the cropped capture.
+Vision: read the PNG in-process. Coordinates are 1024×768 from origin (0,0).

@@ -2,13 +2,15 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SAN5_SCREEN_WIDTH="${SAN5_SCREEN_WIDTH:-1024}"
+SAN5_SCREEN_HEIGHT="${SAN5_SCREEN_HEIGHT:-768}"
 
 # Kill everything (|| true: ok if not already running — pkill returns 1 with set -e)
 pkill -9 Xvfb 2>/dev/null || true
 pkill -9 x11vnc 2>/dev/null || true
 
 # Start fresh
-Xvfb :99 -screen 0 1024x768x24 &
+Xvfb :99 -screen 0 "${SAN5_SCREEN_WIDTH}x${SAN5_SCREEN_HEIGHT}x24" &
 sleep 2
 
 unset WAYLAND_DISPLAY

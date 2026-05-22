@@ -26,7 +26,7 @@ cd ~/.openclaw/workspace/projects/san5
 
 # 3) VNC viewer → <host>:5999
 
-# 4) Mouse (800×600 window coordinates)
+# 4) Mouse (1024×768 window coordinates)
 python3 skills/dosbox-mouse/scripts/dosbox_mouse.py -a move -p 400 323
 python3 skills/dosbox-mouse/scripts/dosbox_mouse.py -a click -p 400 323
 ```
@@ -58,9 +58,7 @@ SAN5_GRAB_MOUSE=1 SAN5_DISMISS_DIALOG=1 ./skills/san5-runtime/scripts/san5_start
 │   │   └── scripts/
 │   │       └── dosbox_mouse.py
 │   ├── screenshot/
-│   │   ├── SKILL.md
-│   │   └── scripts/
-│   │       └── san5_capture.sh
+│   │   └── SKILL.md
 │   └── vision-click/
 │       ├── SKILL.md
 │       └── scripts/
@@ -88,7 +86,7 @@ python3 skills/dosbox-mouse/scripts/dosbox_mouse.py -a debug -v
 | Problem | What to try |
 |---------|-------------|
 | Clicks do nothing | `-a grab` or `-a click`; avoid `-a release` unless stuck |
-| Wrong position | `-a debug`; `--scale` if window ≠ 800×600 |
+| Wrong position | `-a debug`; restart stack so DOSBox is at 0,0 1024×768 |
 | DOSBox not found | `export SAN5_DISPLAY=:99`; start VNC + game |
 | Stuck capture | `-a release`, then grab again or restart DOSBox |
 

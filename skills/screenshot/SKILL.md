@@ -1,47 +1,49 @@
 ---
 name: screenshot
 description: >-
-  Capture the DOSBox san5 game framebuffer from the VNC display for vision
+  Capture the san5 framebuffer with scrot on the VNC display for vision
   analysis. Use before vision-click, when describing game state from pixels,
   or when the user asks for a screenshot of san5.
 ---
 
 # san5 screenshot
 
-Script: `skills/screenshot/scripts/san5_capture.sh`
-
-Crops to the **DOSBox window** only. Pixel coordinates in the PNG match **window-relative** coords used by `dosbox_mouse.py -p X Y` (typically 800×600).
+Capture with **`scrot`** on display `:99`. Full **1024×768** framebuffer (DOSBox at 0,0). PNG pixels match `dosbox_mouse.py -p X Y`.
 
 ## Capture
 
+From workspace root:
+
 ```bash
-./skills/screenshot/scripts/san5_capture.sh
-./skills/screenshot/scripts/san5_capture.sh /tmp/san5.png
+scrot -D :99 -a 0,0,1024,768 san5_screenshot.png
 ```
 
-Output (stdout) includes `path=`, `width`/`height` (xdotool), `image_width`/`image_height` (PNG), and screen offset (`screen_x`, `screen_y`).
+Custom path or size:
 
-If `image_height` < `height`, vision bboxes are in PNG space — scale before click:  
-`y_click = round(y * height / image_height)` (same for X if widths differ).
+```bash
+scrot -D :99 -a 0,0,1024,768 /tmp/san5.png
+# SAN5_SCREEN_WIDTH / SAN5_SCREEN_HEIGHT if you changed Xvfb size
+```
+
+Use **`-D`** for display (not `-display` — scrot treats `-d` as delay and errors).
 
 ## Prerequisites
 
-- `scrot`, `xdotool`
+- `scrot`
 - Display `:99` up, DOSBox running (`san5-runtime`, `TOOLS.md`)
+
+Optional check before capture:
+
+```bash
+xdotool search --name DOSBox
+```
 
 ## Environment
 
 | Variable | Default | Meaning |
 |----------|---------|---------|
-| `SAN5_DISPLAY` | `:99` | X11 display |
-
-## Manual capture (full root)
-
-Only if debugging layout; vision-click should use the script above:
-
-```bash
-scrot -D :99 /tmp/full.png
-```
+| `SAN5_DISPLAY` | `:99` | Pass to `scrot -D` |
+| `SAN5_SCREEN_WIDTH` / `SAN5_SCREEN_HEIGHT` | `1024` / `768` | Region for `-a 0,0,W,H` |
 
 ## Next step
 

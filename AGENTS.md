@@ -6,18 +6,18 @@ OpenClaw workspace for **Romance of the Three Kingdoms V** on VNC + DOSBox.
 
 | Skill | Purpose |
 |-------|---------|
-| `skills/san5-runtime/` | VNC stack + DOSBox launch (`x11vnc_start.sh`, `san5_start.sh`, `san5-dosbox.conf`) |
+| `skills/san5-runtime/` | VNC + DOSBox launch (`san5_start.sh` includes first 確認 mouse sync) |
 | `skills/dosbox-mouse/` | Pointer move/click/grab via `dosbox_mouse.py` |
-| `skills/screenshot/` | Capture DOSBox window (`san5_capture.sh`) for vision |
+| `skills/screenshot/` | Capture framebuffer with `scrot` for vision |
 | `skills/vision-click/` | Analyze screenshot, click targets (`click_target.py`) |
 
 Environment-specific values (game path, VNC host, ports) live in **`TOOLS.md`**, not here.
 
 ## Game window
 
-- Resolution: **800×600** (logical coordinates)
-- Origin: top-left `(0, 0)` → bottom-right `(800, 600)`
-- Typical UI (RTK V): menu ~(400, 550); map tiles in upper area
+- Resolution: **1024×768** (VNC display = DOSBox window, origin top-left)
+- Origin: `(0, 0)` → `(1024, 768)`; DOSBox pinned at `(0, 0)` on `:99`
+- Typical UI coords scale with window size; re-learn after layout change
 
 ## Play workflow
 
@@ -25,7 +25,7 @@ Environment-specific values (game path, VNC host, ports) live in **`TOOLS.md`**,
 2. Launch game if DOSBox is not running
 3. User views via VNC (`TOOLS.md` for host:port)
 4. Use **dosbox-mouse** for interaction; describe what you see to the user
-5. For vision-driven play: screenshot → vision-click (capture, analyze PNG, click inside bbox)
+5. For vision-driven play: `scrot` → analyze PNG → click (first 確認 dialog: capture→move→grab, see vision-click)
 
 ## Safety
 
