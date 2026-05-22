@@ -23,7 +23,7 @@ Not stored in git — install ROMs/data locally.
 
 ## Prerequisites
 
-`dosbox`, `xdotool`, `Xvfb`, `x11vnc`, `xsetroot`, `xdpyinfo`, Python 3 (stdlib for `dosbox_mouse.py`)
+`dosbox`, `xdotool`, `Xvfb`, `x11vnc`, `xsetroot`, `xdpyinfo`, `scrot`, Python 3 (stdlib for mouse/vision-click scripts)
 
 ## Optional env (launch / mouse)
 
@@ -32,9 +32,13 @@ Not stored in git — install ROMs/data locally.
 - `SAN5_ENTER_COUNT` / `SAN5_ENTER_DELAY` — splash Enter keypresses
 - `SAN5_MOUSE_SCRIPT` — override path to `dosbox_mouse.py`
 
-## Future skills
+## Screenshot / vision-click
 
-When added, note API keys or model endpoints here (never commit secrets):
+| Item | Value |
+|------|-------|
+| Display | `:99` (`SAN5_DISPLAY`) |
+| Default capture path | `san5_screenshot.png` (gitignored) |
+| Capture | `./skills/screenshot/scripts/san5_capture.sh [path]` |
+| Click helper | `python3 skills/vision-click/scripts/click_target.py --bbox …` |
 
-- **screenshot** — capture path, display
-- **vision-click** — vision model, template dir
+Vision analysis uses the agent multimodal read of the PNG (no external API in-repo). Coordinates are window-relative 800×600 inside the cropped capture.

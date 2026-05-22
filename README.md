@@ -53,13 +53,21 @@ SAN5_GRAB_MOUSE=1 SAN5_DISMISS_DIALOG=1 ./skills/san5-runtime/scripts/san5_start
 │   │       ├── x11vnc_start.sh
 │   │       ├── san5_start.sh
 │   │       └── san5-dosbox.conf
-│   └── dosbox-mouse/
+│   ├── dosbox-mouse/
+│   │   ├── SKILL.md
+│   │   └── scripts/
+│   │       └── dosbox_mouse.py
+│   ├── screenshot/
+│   │   ├── SKILL.md
+│   │   └── scripts/
+│   │       └── san5_capture.sh
+│   └── vision-click/
 │       ├── SKILL.md
 │       └── scripts/
-│           └── dosbox_mouse.py
+│           └── click_target.py
 ```
 
-Planned: `skills/screenshot/`, `skills/vision-click/`.
+Vision play: capture → read PNG → `click_target.py --bbox …` (see `skills/vision-click/SKILL.md`).
 
 ## `dosbox_mouse.py`
 
