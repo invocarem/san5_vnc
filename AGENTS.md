@@ -9,6 +9,7 @@ OpenClaw workspace for **Romance of the Three Kingdoms V** on VNC + DOSBox.
 | `skills/san5-runtime/` | VNC + DOSBox launch (`san5_start.sh` includes first 確認 mouse sync) |
 | `skills/dosbox-mouse/` | Pointer move/click/grab via `dosbox_mouse.py` |
 | `skills/screenshot/` | Capture framebuffer with `scrot` for vision |
+| `skills/minicpm-vision/` | MiniCPM-V API when agent has no native vision |
 | `skills/vision-click/` | Analyze screenshot, click targets (`click_target.py`) |
 
 Environment-specific values (game path, VNC host, ports) live in **`TOOLS.md`**, not here.
@@ -25,7 +26,7 @@ Environment-specific values (game path, VNC host, ports) live in **`TOOLS.md`**,
 2. Launch game if DOSBox is not running
 3. User views via VNC (`TOOLS.md` for host:port)
 4. Use **dosbox-mouse** for interaction; describe what you see to the user
-5. For vision-driven play: `scrot` → analyze PNG → click (first 確認 dialog: capture→move→grab, see vision-click)
+5. For vision-driven play: `scrot` → analyze PNG → click (no native vision: `minicpm-vision`; first 確認 dialog: capture→move→grab, see vision-click)
 
 ## Safety
 

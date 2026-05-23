@@ -59,13 +59,17 @@ SAN5_GRAB_MOUSE=1 SAN5_DISMISS_DIALOG=1 ./skills/san5-runtime/scripts/san5_start
 │   │       └── dosbox_mouse.py
 │   ├── screenshot/
 │   │   └── SKILL.md
+│   ├── minicpm-vision/
+│   │   ├── SKILL.md
+│   │   └── scripts/
+│   │       └── analyze_screenshot.py
 │   └── vision-click/
 │       ├── SKILL.md
 │       └── scripts/
 │           └── click_target.py
 ```
 
-Vision play: capture → read PNG → `click_target.py --bbox …` (see `skills/vision-click/SKILL.md`).
+Vision play: capture → analyze (native vision or `minicpm-vision`) → `click_target.py --bbox …` (see `skills/vision-click/SKILL.md`).
 
 ## `dosbox_mouse.py`
 

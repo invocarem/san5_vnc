@@ -18,7 +18,14 @@ End-to-end: **screenshot → vision → click inside target**.
    scrot -D :99 -a 0,0,1024,768 san5_screenshot.png
    ```
 
-2. **Analyze** — open the PNG and identify:
+2. **Analyze** — open the PNG and identify (or use `skills/minicpm-vision` if the agent has **no native vision**):
+
+   ```bash
+   export MODELBEST_API_KEY=sk-...   # see minicpm-vision/SKILL.md (public trial key)
+   python3 skills/minicpm-vision/scripts/analyze_screenshot.py --capture
+   ```
+
+   With native vision, open the PNG and identify:
    - **Buttons** — label, bounding box in image pixels `(x1, y1, x2, y2)` top-left origin
    - **Messages** — dialog text, blocking prompts
    - **Game state** — screen type (map, menu, battle, dialog), faction/turn if visible
@@ -85,6 +92,7 @@ Rules for bboxes:
 |------|----------------|
 | VNC + game | `san5-runtime` |
 | Capture | `screenshot` (`scrot`, `xdotool`) |
+| No native vision | `minicpm-vision` (`analyze_screenshot.py`) |
 | Click | `dosbox-mouse` |
 
 See `TOOLS.md` for display `:99` and VNC port.

@@ -47,4 +47,4 @@ xdotool search --name DOSBox
 
 ## Next step
 
-Read the PNG with vision, then follow `skills/vision-click/SKILL.md` to click targets.
+Read the PNG with vision, or run `skills/minicpm-vision` if the agent cannot see images. Then follow `skills/vision-click/SKILL.md` to click targets.

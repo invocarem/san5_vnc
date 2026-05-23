@@ -44,4 +44,13 @@ Not stored in git — install ROMs/data locally.
 | First 確認 click | end of `san5_start.sh` (`SAN5_MOUSE_SYNC=1`, default) |
 | Click helper | `python3 skills/vision-click/scripts/click_target.py --bbox …` |
 
-Vision: read the PNG in-process. Coordinates are 1024×768 from origin (0,0).
+Vision: read the PNG in-process when the agent supports images. Otherwise use `skills/minicpm-vision` (`MODELBEST_API_KEY`, `analyze_screenshot.py --capture`). Coordinates are 1024×768 from origin (0,0).
+
+## ModelBest (MiniCPM-V, no native vision)
+
+| Item | Value |
+|------|-------|
+| API base | `https://api.modelbest.cn/v1` |
+| Model | `MiniCPM-V-4.6-Instruct` |
+| Public trial key | `sk-pQ8L2zF3XmR5kY9wV4jB7hN1tC6vM0xG3aD5sH2bJ9lK4cZ8` (see [api.md](https://github.com/OpenBMB/MiniCPM-V/blob/main/docs/api.md)) |
+| Analyze | `python3 skills/minicpm-vision/scripts/analyze_screenshot.py --capture` |
