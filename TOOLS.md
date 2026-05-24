@@ -23,16 +23,16 @@ Not stored in git — install ROMs/data locally.
 
 ## Prerequisites
 
-`dosbox`, `xdotool`, `Xvfb`, `x11vnc`, `xsetroot`, `xdpyinfo`, `scrot`, Python 3 (stdlib for mouse/vision-click scripts)
+`dosbox`, `xdotool`, `Xvfb`, `x11vnc`, `xsetroot`, `xdpyinfo`, `scrot`, Python 3 (stdlib for mouse scripts)
 
 ## Optional env (launch / mouse)
 
-- `SAN5_GRAB_MOUSE=1` — auto grab or dismiss after `san5_start.sh`
-- `SAN5_DISMISS_DIALOG=1` — with grab, run dismiss instead of grab only
+- `SAN5_GRAB_MOUSE=1` — auto click or dismiss after `san5_start.sh` (if `SAN5_MOUSE_SYNC=0`)
+- `SAN5_DISMISS_DIALOG=1` — with `SAN5_GRAB_MOUSE`, run dismiss instead of click only
 - `SAN5_ENTER_COUNT` / `SAN5_ENTER_DELAY` — splash Enter keypresses
 - `SAN5_MOUSE_SCRIPT` — override path to `dosbox_mouse.py`
 
-## Screenshot / vision-click
+## Screenshot / vision play
 
 | Item | Value |
 |------|-------|
@@ -42,9 +42,15 @@ Not stored in git — install ROMs/data locally.
 | Default capture path | `san5_screenshot.png` (gitignored) |
 | Capture | `scrot -D :99 -a 0,0,1024,768 san5_screenshot.png` |
 | First 確認 click | end of `san5_start.sh` (`SAN5_MOUSE_SYNC=1`, default) |
-| Click helper | `python3 skills/vision-click/scripts/click_target.py --bbox …` |
+| Click | `dosbox_mouse.py -a move/debug/click` (see `dosbox-mouse` skill) |
 
-Vision: read the PNG in-process when the agent supports images. Otherwise use `skills/minicpm-vision` (`MODELBEST_API_KEY`, `analyze_screenshot.py --capture`). Coordinates are 1024×768 from origin (0,0).
+Vision: read the PNG in-process when the agent supports images. Otherwise use `skills/minicpm-vision`:
+
+```bash
+./skills/minicpm-vision/scripts/san5_look.sh   # capture + JSON with recommended_click
+```
+
+Coordinates are 1024×768 from origin (0,0). Script auto-parses pixel coords and retries if the model returns fractions only.
 
 ## ModelBest (MiniCPM-V, no native vision)
 
@@ -53,4 +59,4 @@ Vision: read the PNG in-process when the agent supports images. Otherwise use `s
 | API base | `https://api.modelbest.cn/v1` |
 | Model | `MiniCPM-V-4.6-Instruct` |
 | Public trial key | `sk-pQ8L2zF3XmR5kY9wV4jB7hN1tC6vM0xG3aD5sH2bJ9lK4cZ8` (see [api.md](https://github.com/OpenBMB/MiniCPM-V/blob/main/docs/api.md)) |
-| Analyze | `python3 skills/minicpm-vision/scripts/analyze_screenshot.py --capture` |
+| Analyze | `./skills/minicpm-vision/scripts/san5_look.sh` (or `--capture --json`) |

@@ -2,45 +2,93 @@
 name: minicpm-vision
 description: >-
   Analyze san5 screenshots via ModelBest MiniCPM-V-4.6 when the agent has no
-  native vision. Captures or loads a PNG, calls api.modelbest.cn, returns
-  vision-click bboxes. Use for vision-click without in-chat image support.
+  native vision. Captures or loads a PNG, calls api.modelbest.cn, parses pixel
+  coordinates (with auto-retry), returns JSON for dosbox-mouse. Use when the
+  agent has no in-chat image support.
 ---
 
 # san5 MiniCPM-V vision (no native vision)
 
 When the **agent cannot read PNGs**, use **openbmb/MiniCPM-V-4.6** on ModelBest instead of in-process vision.
 
-## Quick start
+The model often returns **descriptions without pixel coords** (or normalized 0–1 fractions). This skill **parses and converts** them, and **auto-retries** with a JSON-only prompt when needed.
+
+## Quick start (preferred)
 
 ```bash
 export MODELBEST_API_KEY="sk-pQ8L2zF3XmR5kY9wV4jB7hN1tC6vM0xG3aD5sH2bJ9lK4cZ8"   # free public trial key (docs)
 
-# capture + analyze in one step
-python3 skills/minicpm-vision/scripts/analyze_screenshot.py --capture
+# capture + analyze + cursor-calibrated coords (default with --capture)
+./skills/minicpm-vision/scripts/san5_look.sh
 
-# existing scrot output
-scrot -D :99 -a 0,0,1024,768 san5_screenshot.png
-python3 skills/minicpm-vision/scripts/analyze_screenshot.py san5_screenshot.png
+# same, explicit path (--capture auto-enables calibration)
+python3 skills/minicpm-vision/scripts/analyze_screenshot.py --capture --json
 ```
 
-Save output for the agent to parse:
+Read **`recommended_click.use_click`** from JSON (prefer over raw `click`):
 
-```bash
-python3 skills/minicpm-vision/scripts/analyze_screenshot.py --capture -o /tmp/san5_vision.md
+```json
+{
+  "cursor": {
+    "debug": [152, 214],
+    "vision": [148, 210],
+    "offset": [4, 4],
+    "active": true,
+    "reason": "applied offset (+4,+4) from cursor anchor"
+  },
+  "recommended_click": {
+    "label": "開始新遊戲",
+    "click": [152, 214],
+    "calibrated_click": [156, 218],
+    "use_click": [156, 218]
+  }
+}
 ```
 
-## End-to-end with vision-click
+Progress lines print on stderr: `[san5-vision  12.3s] API request → …`
 
-1. **Analyze** (this skill) → markdown with `## Targets` bboxes
-2. **Click** (`skills/vision-click`) — parse `bbox` / `click` from the table, then:
+## End-to-end with dosbox-mouse
+
+1. **Tell the user** you are looking at the screen (~30s)
+2. **Analyze** — `san5_look.sh` or `--capture --json`
+3. **Report** `summary_line` in chat
+4. **Click** — from `recommended_click.use_click`:
 
    ```bash
-   python3 skills/vision-click/scripts/click_target.py --bbox X1 Y1 X2 Y2
-   # first 確認 dialog only:
-   python3 skills/vision-click/scripts/click_target.py --bbox X1 Y1 X2 Y2 --first-dialog
+   CX=156 CY=218
+   python3 skills/dosbox-mouse/scripts/dosbox_mouse.py -a move -p $CX $CY --sync
+   sleep 0.2
+   python3 skills/dosbox-mouse/scripts/dosbox_mouse.py -a debug   # must show inside window near target
+   python3 skills/dosbox-mouse/scripts/dosbox_mouse.py -a click
    ```
 
-3. **Verify** — `--capture` again and re-run if the dialog is still open
+   First 確認 dialog (mouse not captured): move dialog body → click (capture) → move → debug → click (see `dosbox-mouse` SKILL.md).
+
+5. **Verify** — run `san5_look.sh` again if the dialog is still open or debug was off-target
+
+## Cursor calibration (debug anchor)
+
+Vision coords are often a few pixels off. With `--capture` (default in `san5_look.sh`):
+
+1. **`dosbox_mouse -a debug`** — ground-truth cursor position from xdotool
+2. **Wake cursor** — move to that position so the white game sprite appears in the PNG
+3. **Capture + analyze** — MiniCPM-V finds the game cursor tip in the screenshot
+4. **Offset** — `debug − vision` applied to every button coord
+
+If calibration fails (cursor not visible, offset > 80px), JSON falls back to raw `click` coords. Check `cursor.active` and `cursor.reason`.
+
+Disable: `--no-calibrate`
+
+## Agent visibility rules
+
+| When | Say in chat |
+|------|-------------|
+| Before capture/API | `Looking at the screen (MiniCPM-V, ~30s)…` |
+| After JSON returns | Paste `summary_line` |
+| Before click | `Clicking <label> at (X,Y)…` |
+| After click (if unsure) | `Verifying screen…` |
+
+Never stay silent for 15+ seconds during vision work.
 
 ## API (ModelBest)
 
@@ -53,19 +101,6 @@ python3 skills/minicpm-vision/scripts/analyze_screenshot.py --capture -o /tmp/sa
 | Image | base64 data URL in `messages[].content[]` as `image_url` |
 
 Official reference: [MiniCPM-V docs/api.md](https://github.com/OpenBMB/MiniCPM-V/blob/main/docs/api.md)
-
-Text-only smoke test:
-
-```bash
-export MODELBEST_API_KEY="sk-pQ8L2zF3XmR5kY9wV4jB7hN1tC6vM0xG3aD5sH2bJ9lK4cZ8"
-curl https://api.modelbest.cn/v1/chat/completions \
-  -H "Authorization: Bearer $MODELBEST_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "MiniCPM-V-4.6-Instruct",
-    "messages": [{"role": "user", "content": "Introduce yourself in one sentence."}]
-  }'
-```
 
 ## Environment
 
@@ -85,13 +120,24 @@ python3 skills/minicpm-vision/scripts/analyze_screenshot.py -h
 
 | Flag | Purpose |
 |------|---------|
-| `--capture` | `scrot` then analyze |
-| `-o FILE` | write markdown to file |
-| `--prompt TEXT` | override san5 bbox prompt |
+| `--capture` | `scrot` then analyze (auto-calibrates via debug cursor) |
+| `--json` | structured output with `targets`, `recommended_click.use_click`, `cursor` |
+| `--no-calibrate` | skip debug-cursor anchor (even with `--capture`) |
+| `-o FILE` | write raw markdown to file |
+| `--prompt TEXT` | override san5 bbox prompt (single call, no auto-retry) |
+| `--no-retry` | skip JSON retry when markdown lacks pixel coords |
+| `--quiet` | hide `[san5-vision]` progress on stderr |
 | `--model NAME` | e.g. `MiniCPM-V-4.6-Thinking` |
-| `--raw` | dump full JSON response |
+| `--raw` | dump full parsed result JSON (includes raw_markdown) |
 
-Default prompt asks for the same **vision-click output template** (screen type, message, targets table, next action). Coordinates are **1024×768** PNG space.
+## Coordinate handling
+
+1. **Debug anchor** — `dosbox_mouse -a debug` before capture (when calibrating)
+2. **Primary pass** — markdown template with integer pixel bboxes + game cursor tip
+3. **Parser** — extracts table rows; converts normalized 0–1 fractions to pixels
+4. **Calibration** — offset from debug vs vision cursor applied to all targets
+5. **Retry pass** — if no valid targets, second API call asks for JSON array only
+6. **Output** — `use_click` ready for `move -p CX CY --sync`; verify with `debug -v`, then `click`
 
 ## Prerequisites
 
@@ -99,7 +145,7 @@ Default prompt asks for the same **vision-click output template** (screen type, 
 |------|-------|
 | Game on `:99` | `san5-runtime` |
 | Capture | `screenshot` (`scrot`) |
-| Click | `vision-click` + `dosbox-mouse` |
+| Click | `dosbox-mouse` |
 
 Network access to `api.modelbest.cn` is required.
 
@@ -109,5 +155,6 @@ Network access to `api.modelbest.cn` is required.
 |---------|-------------|
 | `MODELBEST_API_KEY` unset | `export` the key from this doc or `TOOLS.md` |
 | DNS / connection errors | Check outbound HTTPS; retry with longer `--timeout` |
-| Wrong button coords | Re-capture; use `--prompt` to stress tight bboxes |
-| Empty targets | Game may be on map with no buttons; read `## Screen` / `## Message` |
+| Empty `targets` after retry | Read `raw_markdown` / describe screen to user; re-capture |
+| Wrong button coords | Re-capture; check `debug` before `click` |
+| Slow | Normal — API is 20–60s; keep user updated via chat + stderr progress |

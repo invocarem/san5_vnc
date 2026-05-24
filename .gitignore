@@ -3,3 +3,5 @@
 *.swp
 
 *.json
+__pycache__/
+venv/

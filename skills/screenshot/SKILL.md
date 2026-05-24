@@ -2,7 +2,7 @@
 name: screenshot
 description: >-
   Capture the san5 framebuffer with scrot on the VNC display for vision
-  analysis. Use before vision-click, when describing game state from pixels,
+  analysis. Use before vision-driven clicks, when describing game state from pixels,
   or when the user asks for a screenshot of san5.
 ---
 
@@ -47,4 +47,4 @@ xdotool search --name DOSBox
 
 ## Next step
 
-Read the PNG with vision, or run `skills/minicpm-vision` if the agent cannot see images. Then follow `skills/vision-click/SKILL.md` to click targets.
+Read the PNG with vision, or run `skills/minicpm-vision` if the agent cannot see images. Then use `skills/dosbox-mouse` (move → debug → click).

@@ -8,7 +8,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 CONF="${SCRIPT_DIR}/san5-dosbox.conf"
 MOUSE_SCRIPT="${SAN5_MOUSE_SCRIPT:-${WORKSPACE_ROOT}/skills/dosbox-mouse/scripts/dosbox_mouse.py}"
-CLICK_TARGET="${SAN5_CLICK_TARGET:-${WORKSPACE_ROOT}/skills/vision-click/scripts/click_target.py}"
+MOUSE_SYNC_SCRIPT="${SAN5_MOUSE_SYNC_SCRIPT:-${SCRIPT_DIR}/san5_mouse_sync.sh}"
 GAME_DIR="${SAN5_GAME_DIR:-${HOME}/Games/san5}"
 
 # Match x11vnc_start.sh virtual display
@@ -22,6 +22,7 @@ SAN5_SCREEN_WIDTH="${SAN5_SCREEN_WIDTH:-1024}"
 SAN5_SCREEN_HEIGHT="${SAN5_SCREEN_HEIGHT:-768}"
 SAN5_WINDOW_X="${SAN5_WINDOW_X:-0}"
 SAN5_WINDOW_Y="${SAN5_WINDOW_Y:-0}"
+SAN5_FORCE_WINDOW_SIZE="${SAN5_FORCE_WINDOW_SIZE:-1}"
 
 ensure_vnc() {
   if xdpyinfo -display "$DISPLAY" >/dev/null 2>&1; then
@@ -54,7 +55,9 @@ focus_dosbox() {
 layout_dosbox() {
   local win="$1"
   xdotool windowmove "$win" "$SAN5_WINDOW_X" "$SAN5_WINDOW_Y"
-  xdotool windowsize "$win" "$SAN5_SCREEN_WIDTH" "$SAN5_SCREEN_HEIGHT" 2>/dev/null || true
+  if [[ "$SAN5_FORCE_WINDOW_SIZE" == 1 ]]; then
+    xdotool windowsize "$win" "$SAN5_SCREEN_WIDTH" "$SAN5_SCREEN_HEIGHT" 2>/dev/null || true
+  fi
   echo "  DOSBox at (${SAN5_WINDOW_X},${SAN5_WINDOW_Y}) ${SAN5_SCREEN_WIDTH}x${SAN5_SCREEN_HEIGHT}"
 }
 
@@ -65,23 +68,6 @@ send_enter_keys() {
     xdotool key Return 2>/dev/null || true
     echo "  sent Enter (${i}/${ENTER_COUNT})"
   done
-}
-
-sync_mouse_first_dialog() {
-  # One-time capture → move → grab for 確認 (CD dialog). Later screens: move/click only.
-  local wait="${SAN5_MOUSE_SYNC_DELAY:-3}"
-  export SAN5_CAPTURE_X="${SAN5_CAPTURE_X:-512}"
-  export SAN5_CAPTURE_Y="${SAN5_CAPTURE_Y:-384}"
-  local x1="${SAN5_CONFIRM_X1:-432}" y1="${SAN5_CONFIRM_Y1:-398}"
-  local x2="${SAN5_CONFIRM_X2:-592}" y2="${SAN5_CONFIRM_Y2:-422}"
-
-  echo "Waiting ${wait}s for 確認 dialog, then mouse sync..."
-  sleep "$wait"
-  if [[ ! -f "$CLICK_TARGET" ]]; then
-    echo "warning: missing ${CLICK_TARGET}; skip mouse sync" >&2
-    return 0
-  fi
-  python3 "$CLICK_TARGET" --bbox "$x1" "$y1" "$x2" "$y2" --first-dialog || true
 }
 
 if [[ ! -f "$CONF" ]]; then
@@ -105,7 +91,8 @@ echo "  [autoexec] mount c/d, c: — then -c play"
 
 # 1. dosbox with san5-dosbox.conf (autoexec: mount c, mount d cdrom, c:)
 # 5. -c play  →  runs PLAY.BAT → san586.com
-dosbox -conf "$CONF" -c "play" &
+dosbox -conf "$CONF" \
+ -c "play" &
 DOSBOX_PID=$!
 
 echo "DOSBox PID ${DOSBOX_PID}; waiting ${DOSBOX_WAIT}s for shell..."
@@ -119,25 +106,15 @@ else
   echo "warning: could not find DOSBox window; splash Enter may need manual keypress" >&2
 fi
 
-# First 確認 dialog: capture mouse in DOSBox, click button (once per launch)
-if [[ "${SAN5_MOUSE_SYNC:-1}" == 1 ]]; then
-  sync_mouse_first_dialog
-elif [[ "${SAN5_GRAB_MOUSE:-0}" == 1 ]]; then
-  sleep 1
-  if [[ -n "${SAN5_DISMISS_DIALOG:-}" ]]; then
-    python3 "${MOUSE_SCRIPT}" -a dismiss || true
-  else
-    python3 "${MOUSE_SCRIPT}" -a grab || true
-  fi
-fi
-
 HOST_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
 MOUSE="${MOUSE_SCRIPT}"
 echo ""
 echo "san5 launched. Confirm via VNC:"
 echo "  ${HOST_IP:-<host>}:5999  (display ${DISPLAY})"
-echo "Mouse:  python3 ${MOUSE} -a move -p 500 200"
-echo "Click:  python3 ${MOUSE} -a click -p 500 200   (or: move, then -a grab)"
+echo "Mouse sync (first dialog): ${MOUSE_SYNC_SCRIPT}"
+echo "  run: ${MOUSE_SYNC_SCRIPT}"
+echo "Mouse:  python3 ${MOUSE} -a move -p 500 200 --sync"
+echo "Click:  python3 ${MOUSE} -a debug -v && python3 ${MOUSE} -a click"
 echo "Stuck:  python3 ${MOUSE} -a release"
 echo "Debug:  python3 ${MOUSE} -a debug -v"
 echo "Stop DOSBox: kill ${DOSBOX_PID}"

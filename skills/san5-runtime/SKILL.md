@@ -28,12 +28,12 @@ Optional:
 
 ```bash
 SAN5_MOUSE_SYNC=0 ./skills/san5-runtime/scripts/san5_start.sh   # skip first 確認 click
-SAN5_GRAB_MOUSE=1 ./skills/san5-runtime/scripts/san5_start.sh   # legacy grab only (if MOUSE_SYNC=0)
+SAN5_GRAB_MOUSE=1 ./skills/san5-runtime/scripts/san5_start.sh   # legacy click only (if MOUSE_SYNC=0)
 ```
 
 `san5_start.sh` calls `x11vnc_start.sh` automatically if display `:99` is down.
 
-By default **`SAN5_MOUSE_SYNC=1`**: after splash Enter keys, waits for the CD/確認 dialog, then capture→move→grab (one-time). Later screens use `dosbox_mouse.py -a click` only.
+By default **`SAN5_MOUSE_SYNC=1`**: after splash Enter keys, waits for the CD/確認 dialog, then move→click (capture)→move→debug→click (one-time). Later screens use move → debug → click.
 
 Display and DOSBox window are **1024×768** at **(0, 0)**. Override: `SAN5_SCREEN_WIDTH`, `SAN5_CONFIRM_X1`…`Y2`, `SAN5_CAPTURE_X`/`Y`, `SAN5_MOUSE_SYNC_DELAY` (default 3s).
 
