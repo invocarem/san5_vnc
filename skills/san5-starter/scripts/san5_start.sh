@@ -6,12 +6,11 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
+X11VNC_SCRIPT="${WORKSPACE_ROOT}/skills/san5-x11vnc/scripts/x11vnc_start.sh"
 CONF="${SCRIPT_DIR}/san5-dosbox.conf"
 MOUSE_SCRIPT="${SAN5_MOUSE_SCRIPT:-${WORKSPACE_ROOT}/skills/dosbox-mouse/scripts/dosbox_mouse.py}"
-MOUSE_SYNC_SCRIPT="${SAN5_MOUSE_SYNC_SCRIPT:-${SCRIPT_DIR}/san5_mouse_sync.sh}"
 GAME_DIR="${SAN5_GAME_DIR:-${HOME}/Games/san5}"
 
-# Match x11vnc_start.sh virtual display
 export DISPLAY="${SAN5_DISPLAY:-:99}"
 unset WAYLAND_DISPLAY
 
@@ -29,7 +28,7 @@ ensure_vnc() {
     return 0
   fi
   echo "Display ${DISPLAY} not ready; starting VNC environment..."
-  "${SCRIPT_DIR}/x11vnc_start.sh"
+  "${X11VNC_SCRIPT}"
   export DISPLAY=:99
   sleep 1
   if ! xdpyinfo -display "$DISPLAY" >/dev/null 2>&1; then
@@ -89,8 +88,6 @@ ensure_vnc
 echo "Starting DOSBox (config: ${CONF})"
 echo "  [autoexec] mount c/d, c: — then -c play"
 
-# 1. dosbox with san5-dosbox.conf (autoexec: mount c, mount d cdrom, c:)
-# 5. -c play  →  runs PLAY.BAT → san586.com
 dosbox -conf "$CONF" \
  -c "play" &
 DOSBOX_PID=$!
@@ -111,10 +108,9 @@ MOUSE="${MOUSE_SCRIPT}"
 echo ""
 echo "san5 launched. Confirm via VNC:"
 echo "  ${HOST_IP:-<host>}:5999  (display ${DISPLAY})"
-echo "Mouse sync (first dialog): ${MOUSE_SYNC_SCRIPT}"
-echo "  run: ${MOUSE_SYNC_SCRIPT}"
-echo "Mouse:  python3 ${MOUSE} -a move -p 500 200 --sync"
+echo ""
+echo "First CD/確認 dialog: see skills/san5-ui/SKILL.md (first_cd_confirm)"
+echo "Mouse:  python3 ${MOUSE} -a move -p X Y --sync"
 echo "Click:  python3 ${MOUSE} -a debug -v && python3 ${MOUSE} -a click"
 echo "Stuck:  python3 ${MOUSE} -a release"
-echo "Debug:  python3 ${MOUSE} -a debug -v"
 echo "Stop DOSBox: kill ${DOSBOX_PID}"

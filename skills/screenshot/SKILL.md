@@ -30,7 +30,7 @@ Use **`-D`** for display (not `-display` — scrot treats `-d` as delay and erro
 ## Prerequisites
 
 - `scrot`
-- Display `:99` up, DOSBox running (`san5-runtime`, `TOOLS.md`)
+- Display `:99` up, DOSBox running (`san5-x11vnc`, `san5-starter`, `TOOLS.md`)
 
 Optional check before capture:
 

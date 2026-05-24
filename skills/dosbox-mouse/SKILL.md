@@ -48,7 +48,7 @@ Plain `move -p X Y` (no `--sync`) only warps X11 — faster when the game cursor
 2. `-a debug -v` — confirm `inside window (X, Y)` is on target (within ~12 px of vision coords)
 3. `-a click` — left-click at current position
 
-**First dialog** (確認 / CD prompt — game ignores xdotool until you click inside DOSBox once):
+**First dialog** (確認 / CD prompt — game ignores xdotool until you click inside DOSBox once). Coords: `san5-ui` → **first_cd_confirm**.
 
 1. `-a move -p CX CY --sync` on dialog body (not the button)
 2. `-a click` — **captures** mouse in DOSBox
@@ -57,7 +57,7 @@ Plain `move -p X Y` (no `--sync`) only warps X11 — faster when the game cursor
 5. `-a debug -v` — verify position before clicking
 6. `-a click` — confirm the button
 
-On launch, `san5_start.sh` runs this sequence via `san5_mouse_sync.sh` when `SAN5_MOUSE_SYNC=1`.
+After `san5_start.sh`, run the **first_cd_confirm** procedure in `skills/san5-ui/SKILL.md` (coords + capture sequence).
 
 After `-a release`, run `move --sync` → `click` again to re-capture before more game clicks.
 
@@ -93,7 +93,9 @@ After analyzing a screenshot, record:
 ## Targets
 | label | bbox (x1,y1,x2,y2) | click (cx,cy) |
 |-------|---------------------|---------------|
-| 確認  | 432,398,592,422     | 512,410       |
+| (from screenshot) | integers only | center of bbox |
+
+For verified san5 anchors (e.g. CD 確認), see `skills/san5-ui/SKILL.md`.
 
 ## Next action
 - click: 確認
@@ -116,7 +118,7 @@ Rules: `(x1,y1)` top-left, `(x2,y2)` bottom-right; click center must lie inside 
 | `SAN5_WAKE_CURSOR` | `1` | Pointer jiggle when `move --sync` (disable if jiggle causes issues) |
 | `SAN5_CLICK_SCREEN_SYNC` | `0` | `1` = old slow screen `mousemove --sync` before click (~15s on Xvfb) |
 | `SAN5_CLICK_SCREEN_NUDGE` | `1` | Fast unsynced screen warp before mousedown (disable if clicks miss) |
-| `SAN5_SETTLE_SEC` | `0.2` | Used by `san5_mouse_sync.sh` after move before debug |
+| `SAN5_SETTLE_SEC` | `0.2` | Optional sleep after move before debug (see `san5-ui` procedures) |
 
 Full list and troubleshooting: workspace `README.md`.
 

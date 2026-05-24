@@ -21,11 +21,14 @@ OpenClaw workspace that runs **Romance of the Three Kingdoms V (san5)** in DOSBo
 
 ```
 skills/
-├── san5-runtime/          # VNC + DOSBox lifecycle
+├── san5-x11vnc/            # Xvfb :99 + x11vnc :5999
+│   └── scripts/x11vnc_start.sh
+├── san5-starter/           # DOSBox launch
 │   └── scripts/
-│       ├── x11vnc_start.sh     # Start Xvfb :99 + x11vnc :5999
-│       ├── san5_start.sh       # Launch DOSBox, mount game, send Enter splashes
-│       └── san5-dosbox.conf    # DOSBox config (1024x768, autolock=false)
+│       ├── san5_start.sh
+│       └── san5-dosbox.conf
+├── san5-ui/                # Game UI coords (markdown only)
+│   └── SKILL.md
 ├── dosbox-mouse/           # Pointer control
 │   └── scripts/
 │       └── dosbox_mouse.py     # move/click/release inside DOSBox
@@ -40,14 +43,14 @@ skills/
 
 All commands run from workspace root (`~/.openclaw/workspace`).
 
-### Runtime
+### Display + launch
 
 ```bash
 # Start VNC display (once per session)
-./skills/san5-runtime/scripts/x11vnc_start.sh
+./skills/san5-x11vnc/scripts/x11vnc_start.sh
 
 # Launch DOSBox + san5 game
-./skills/san5-runtime/scripts/san5_start.sh
+./skills/san5-starter/scripts/san5_start.sh
 
 # Stop everything
 pkill -f 'dosbox.*san5-dosbox'
@@ -85,12 +88,7 @@ sleep 0.2
 python3 skills/dosbox-mouse/scripts/dosbox_mouse.py -a debug -v
 python3 skills/dosbox-mouse/scripts/dosbox_mouse.py -a click
 
-# First dialog (mouse not captured yet): move --sync → click → move --sync → debug -v → click
-python3 skills/dosbox-mouse/scripts/dosbox_mouse.py -a move -p 512 384 --sync
-python3 skills/dosbox-mouse/scripts/dosbox_mouse.py -a click
-python3 skills/dosbox-mouse/scripts/dosbox_mouse.py -a move -p 512 410 --sync
-python3 skills/dosbox-mouse/scripts/dosbox_mouse.py -a debug -v
-python3 skills/dosbox-mouse/scripts/dosbox_mouse.py -a click
+# First CD/確認 dialog: see skills/san5-ui/SKILL.md (first_cd_confirm)
 ```
 
 ### Vision API (fallback, no native vision)
@@ -108,7 +106,7 @@ Agent must announce progress before/after (20–60s API); see `AGENTS.md` Visibi
 - **Display stack**: Xvfb (`:99`, 1024×768) → x11vnc (port 5999, no local cursor) → VNC viewer
 - **DOSBox window**: Always pinned at `(0,0)` with `1024×768` resolution, `autolock=false`
 - **Coordinate system**: All positions are window-relative `(x, y)` with origin top-left, matching PNG pixel space
-- **Mouse capture**: DOSBox `autolock=false` means the first click inside the window must capture the pointer before subsequent clicks register. This is handled by `san5_start.sh` (mouse sync on first 確認 dialog)
+- **Mouse capture**: DOSBox `autolock=false` means the first click inside the window must capture the pointer before subsequent clicks register. After launch, follow `san5-ui` → **first_cd_confirm**
 - **No game files in repo**: Game data lives at `~/Games/san5` (`SAN5_GAME_DIR`), not tracked in git
 
 ## Safety Rules
@@ -126,8 +124,5 @@ Agent must announce progress before/after (20–60s API); see `AGENTS.md` Visibi
 | `SAN5_DISPLAY` | `:99` | All scripts |
 | `SAN5_SCREEN_WIDTH/HEIGHT` | `1024` / `768` | Screenshot, launch |
 | `SAN5_GAME_DIR` | `~/Games/san5` | san5_start.sh |
-| `SAN5_GRAB_MOUSE` | unset | Legacy: run click after launch if `SAN5_MOUSE_SYNC=0` |
-| `SAN5_DISMISS_DIALOG` | unset | Dismiss confirm dialog at launch |
-| `SAN5_MOUSE_SYNC` | `1` | Auto mouse sync on first dialog |
 | `SAN5_ENTER_COUNT/DELAY` | `4` / `2` | Splash Enter keypresses |
 | `MODELBEST_API_KEY` | — | Vision API auth |

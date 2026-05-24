@@ -6,7 +6,9 @@ OpenClaw workspace for **Romance of the Three Kingdoms V** on VNC + DOSBox.
 
 | Skill | Purpose |
 |-------|---------|
-| `skills/san5-runtime/` | VNC + DOSBox launch (`san5_start.sh` includes first 確認 mouse sync) |
+| `skills/san5-x11vnc/` | Virtual display + VNC (`x11vnc_start.sh`) |
+| `skills/san5-starter/` | Launch DOSBox + game (`san5_start.sh`) |
+| `skills/san5-ui/` | Known UI coords and click procedures (markdown only) |
 | `skills/dosbox-mouse/` | Pointer move/click via `dosbox_mouse.py` |
 | `skills/screenshot/` | Capture framebuffer with `scrot` for vision |
 | `skills/minicpm-vision/` | MiniCPM-V API when agent has no native vision |
@@ -23,7 +25,7 @@ Read `skills/dosbox-mouse/SKILL.md` (**Concepts**) for detail. Short version:
 | Capture (DOSBox accepts mouse) | `click` — no separate action; not the same as `--sync` |
 | Release (uncapture) | `release` |
 
-Workflow: `move --sync` → `debug -v` → `click`. First 確認 dialog needs an extra `click` on the dialog body to capture before aiming the button.
+Workflow: `move --sync` → `debug -v` → `click`. First 確認 dialog: see `san5-ui` → **first_cd_confirm** (capture click on dialog body, then 確認).
 
 ## Game window
 
@@ -33,8 +35,8 @@ Workflow: `move --sync` → `debug -v` → `click`. First 確認 dialog needs an
 
 ## Play workflow
 
-1. Check VNC: `ps aux | grep x11vnc` — start runtime skill if needed
-2. Launch game if DOSBox is not running
+1. Check VNC: `ps aux | grep x11vnc` — start `san5-x11vnc` if needed
+2. Launch game if DOSBox is not running (`san5-starter`)
 3. User views via VNC (`TOOLS.md` for host:port)
 4. Use **dosbox-mouse** for interaction; describe what you see to the user
 5. For vision-driven play: look → click → verify (see below)
@@ -52,7 +54,7 @@ The agent **cannot read PNGs**. Use `minicpm-vision` — it returns descriptions
 
 `san5_look.sh` auto-calibrates: runs `dosbox_mouse -a debug` for the true cursor position, asks MiniCPM-V to find the game cursor in the PNG, computes offset, shifts all button coords.
 
-Then click: `dosbox_mouse.py -a move -p CX CY --sync` → **debug -v** → click (first 確認: see `dosbox-mouse`).
+Then click: `dosbox_mouse.py -a move -p CX CY --sync` → **debug -v** → click (first 確認: see `san5-ui`).
 
 ### Visibility — never go silent
 

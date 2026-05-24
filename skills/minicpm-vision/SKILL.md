@@ -62,20 +62,22 @@ Progress lines print on stderr: `[san5-vision  12.3s] API request → …`
    python3 skills/dosbox-mouse/scripts/dosbox_mouse.py -a click
    ```
 
-   First 確認 dialog (mouse not captured): move dialog body → click (capture) → move → debug → click (see `dosbox-mouse` SKILL.md).
+   First 確認 dialog (mouse not captured): see `san5-ui` → **first_cd_confirm** (or `dosbox-mouse` SKILL.md).
 
 5. **Verify** — run `san5_look.sh` again if the dialog is still open or debug was off-target
 
 ## Cursor calibration (debug anchor)
 
-Vision coords are often a few pixels off. With `--capture` (default in `san5_look.sh`):
+With `--capture` (default in `san5_look.sh`):
 
-1. **`dosbox_mouse -a debug`** — ground-truth cursor position from xdotool
-2. **Wake cursor** — move to that position so the white game sprite appears in the PNG
-3. **Capture + analyze** — MiniCPM-V finds the game cursor tip in the screenshot
-4. **Offset** — `debug − vision` applied to every button coord
+1. **`dosbox_mouse -a debug`** — ground-truth pointer from xdotool
+2. **`move -p X Y --sync`** — redraw the game cursor at that pixel before `scrot`
+3. **Capture + analyze** — separate cursor JSON pass if needed
+4. **Offset** — `debug − vision` applied to button coords **only** when offset &lt; 80px and vision’s cursor tip is in the expected screen region
 
-If calibration fails (cursor not visible, offset > 80px), JSON falls back to raw `click` coords. Check `cursor.active` and `cursor.reason`.
+If calibration is skipped (large offset, vision cursor on wrong side of screen), use layout-filtered `click` coords as-is. Check `cursor.active`, `cursor.reason`, and `warnings[]`.
+
+**Do not** assume debug `(940, 210)` is wrong on the **map** screen — the command UI lives on the **right** (x ≥ 540). A centered main-menu screenshot is a different `screen_type`.
 
 Disable: `--no-calibrate`
 
@@ -143,7 +145,7 @@ python3 skills/minicpm-vision/scripts/analyze_screenshot.py -h
 
 | Step | Skill |
 |------|-------|
-| Game on `:99` | `san5-runtime` |
+| Game on `:99` | `san5-starter` |
 | Capture | `screenshot` (`scrot`) |
 | Click | `dosbox-mouse` |
 
@@ -156,5 +158,8 @@ Network access to `api.modelbest.cn` is required.
 | `MODELBEST_API_KEY` unset | `export` the key from this doc or `TOOLS.md` |
 | DNS / connection errors | Check outbound HTTPS; retry with longer `--timeout` |
 | Empty `targets` after retry | Read `raw_markdown` / describe screen to user; re-capture |
-| Wrong button coords | Re-capture; check `debug` before `click` |
-| Slow | Normal — API is 20–60s; keep user updated via chat + stderr progress |
+| `coord_confidence: low` | Model put buttons on the map (left); regional retry should run — if still empty, use `skills/san5-ui` anchors |
+| Inconsistent coords across runs | Different `screen_type` (menu vs map) or stale PNG; always `--capture` fresh |
+| Debug cursor far right | Normal on **map** screen (right panel); not normal on **main_menu** (center ~x 512) |
+| Wrong button coords | Check `coords_source` (`retry_regional` is best for map); verify with `debug -v` before click |
+| Slow | Normal — 20–60s (up to 2 API calls on map); keep user updated via chat + stderr progress |

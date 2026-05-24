@@ -6,7 +6,7 @@ Curated notes for playing RTK V via VNC. Update after sessions worth keeping.
 
 ## Learned coordinates
 
-<!-- Example: Chang'an city select ~(x, y) after verification with -a debug -->
+Promote verified coords into `skills/san5-ui/SKILL.md`. Keep raw session notes here until confirmed.
 
 ## Scenarios
 

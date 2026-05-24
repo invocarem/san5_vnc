@@ -45,8 +45,17 @@ Report the **tip/hotspot** pixel of that sprite. If no game cursor is visible, s
 
 CRITICAL: use pixel integers only (0–1023 for x, 0–767 for y). Do NOT use fractions, percentages, or normalized 0–1 values.
 
-Example row (follow this format exactly):
-| 確認 | 432,398,592,422 | 512,410 |
+Layout rules (do not guess center — use visible button positions):
+- **main_menu**: one centered vertical menu (~x 380–640, y 270–490). Six items (開始新遊戲, 載入遊戲進度, …). Background birds are NOT buttons.
+- **map** (in-game): LEFT side is terrain only — no buttons there. ALL controls are in the RIGHT panel (x ≥ 540): red menu bar + large green buttons (外交, 計謀, 軍事, 人事, 內政, 特殊, 休息, …).
+- **dialog**: modal box near screen center; 確認/取消 inside the box.
+
+Do NOT list the whole map, background, or full window as a target. Do NOT put map-screen buttons at x < 500.
+
+Example row (follow this format exactly; integer pixels only):
+| label | x1,y1,x2,y2 | cx,cy |
+
+Known verified anchors (e.g. CD 確認): see skills/san5-ui/SKILL.md.
 
 Respond ONLY in this markdown template (fill every section; use "none" if empty):
 
@@ -111,7 +120,72 @@ Rules:
 - All numbers must be integers in pixel space (x: 0–1023, y: 0–767)
 - click must be the center of bbox
 - Do not use fractions or percentages
+- On the in-game map screen, only buttons in the RIGHT UI panel (x ≥ 540); ignore terrain on the left
 """
+
+SAN5_MAP_PANEL_RETRY_PROMPT = """Romance of the Three Kingdoms V (三国志V) in-game map screen. Image: 1024×768 px, origin top-left.
+
+The LEFT side (~x 0–520) is map terrain — NOT clickable.
+
+List ONLY buttons in the RIGHT command panel (x ≥ 540): red menu bar (移動, 戰爭, 君主, …) and large green buttons (外交, 計謀, 軍事, 人事, 內政, 特殊, 休息, …).
+
+Return ONLY a JSON array. Each element:
+{"label": "exact Chinese label on button", "bbox": [x1, y1, x2, y2], "click": [cx, cy]}
+Integer pixels only (x: 540–1023). Do not use 0–1000 scale.
+"""
+
+SAN5_MAIN_MENU_RETRY_PROMPT = """Romance of the Three Kingdoms V (三国志V) main title menu. Image: 1024×768 px.
+
+A single centered vertical menu (~x 380–640, y 270–490) with six items:
+開始新遊戲, 載入遊戲進度, 登錄武將資料, 武將單挑, 登錄寶物資料, 轉換儲存資料.
+
+Return ONLY a JSON array of those buttons with integer pixel bboxes and click centers. Ignore background pattern.
+"""
+
+# Screen-type layout validation (1024×768). Used to filter hallucinated coords.
+SCREEN_PROFILES: dict[str, dict] = {
+    "main_menu": {
+        "aliases": frozenset({"main_menu", "menu", "title", "title_screen"}),
+        "click_x": (360, 660),
+        "click_y": (260, 520),
+        "retry_prompt": SAN5_MAIN_MENU_RETRY_PROMPT,
+    },
+    "map": {
+        "aliases": frozenset({"map", "strategy", "tactical", "in_game", "ingame"}),
+        "click_x": (540, 1023),
+        "click_y": (40, 700),
+        "retry_prompt": SAN5_MAP_PANEL_RETRY_PROMPT,
+    },
+    "dialog": {
+        "aliases": frozenset({"dialog", "modal", "confirm"}),
+        "click_x": (180, 844),
+        "click_y": (280, 560),
+        "retry_prompt": None,
+    },
+}
+
+IGNORE_TARGET_LABELS = frozenset(
+    {
+        "label",
+        "cursor",
+        "游標",
+        "游戏光标",
+        "遊戲光標",
+        "地图",
+        "地圖",
+        "map",
+        "主菜单",
+        "主菜單",
+        "主界面",
+        "主畫面",
+        "背景",
+        "background",
+        "screen",
+        "window",
+    }
+)
+
+MAX_BBOX_AREA_FRAC = 0.35
 
 
 @dataclass
@@ -141,6 +215,8 @@ class VisionResult:
     raw_markdown: str = ""
     coords_source: str = "primary"
     cursor: CursorCalibration = field(default_factory=CursorCalibration)
+    warnings: list[str] = field(default_factory=list)
+    coord_confidence: str = "unknown"
 
 
 def log(msg: str, *, quiet: bool = False) -> None:
@@ -185,25 +261,151 @@ def get_debug_cursor(*, quiet: bool = False) -> list[int] | None:
 
 
 def wake_cursor_at(x: int, y: int, *, quiet: bool = False) -> None:
-    """Move to current position so DOSBox redraws the game cursor before capture."""
+    """Sync X11 pointer to DOSBox so the game cursor appears at capture position."""
     script = dosbox_mouse_script()
     if not script.is_file():
         return
-    cmd = ["python3", str(script), "-a", "move", "-p", str(x), str(y)]
+    cmd = ["python3", str(script), "-a", "move", "-p", str(x), str(y), "--sync"]
     log(f"wake game cursor: {' '.join(cmd)}", quiet=quiet)
     subprocess.run(cmd, capture_output=True, text=True)
-    time.sleep(float(os.environ.get("SAN5_SETTLE_SEC", "0.35")))
+    time.sleep(float(os.environ.get("SAN5_SETTLE_SEC", "0.45")))
 
 
-def build_vision_prompt(known_cursor: list[int] | None) -> str:
-    if not known_cursor:
-        return SAN5_VISION_PROMPT
-    mx, my = known_cursor
-    return (
-        SAN5_VISION_PROMPT
-        + f"\n\nCalibration: xdotool reports the mouse at ({mx},{my}) inside the window. "
-        f"The game cursor sprite should be near that pixel — report its tip in ## Cursor."
+def build_vision_prompt() -> str:
+    """Primary vision prompt. Do not inject debug cursor — it biases the model."""
+    return SAN5_VISION_PROMPT
+
+
+def normalize_screen_type(raw: str) -> str:
+    t = raw.lower().strip()
+    for key, profile in SCREEN_PROFILES.items():
+        if t == key or t in profile["aliases"]:
+            return key
+    return t
+
+
+def screen_profile(screen_type: str) -> dict | None:
+    return SCREEN_PROFILES.get(normalize_screen_type(screen_type))
+
+
+def click_in_profile(x: int, y: int, profile: dict) -> bool:
+    x1, x2 = profile["click_x"]
+    y1, y2 = profile["click_y"]
+    return x1 <= x <= x2 and y1 <= y <= y2
+
+
+def bbox_area_frac(bbox: list[int], w: int, h: int) -> float:
+    x1, y1, x2, y2 = bbox
+    return (x2 - x1) * (y2 - y1) / (w * h)
+
+
+def _parse_paren_points(text: str) -> list[tuple[int, int]]:
+    points: list[tuple[int, int]] = []
+    for m in re.finditer(r"\(\s*(\d+)\s*[,，]\s*(\d+)\s*\)", text):
+        points.append((int(m.group(1)), int(m.group(2))))
+    return points
+
+
+def _parse_kv_bbox_click(text: str, w: int, h: int) -> tuple[list[int], list[int]] | None:
+    """Parse x1:540,y1:270,x2:640,y2:490 and cx:590,cy:337 style fields."""
+    fields: dict[str, int] = {}
+    for m in re.finditer(r"\b(x[12]|y[12]|cx|cy)\s*[:=]\s*(\d+)", text, re.I):
+        fields[m.group(1).lower()] = int(m.group(2))
+    need_bbox = {"x1", "y1", "x2", "y2"}
+    if not need_bbox.issubset(fields):
+        return None
+    bbox = _bbox_from_nums(
+        [fields["x1"], fields["y1"], fields["x2"], fields["y2"]], w, h
     )
+    if bbox is None or not _valid_bbox(bbox, w, h):
+        return None
+    if "cx" in fields and "cy" in fields:
+        click = [_to_pixel(fields["cx"], w), _to_pixel(fields["cy"], h)]
+    else:
+        click = _click_from_bbox(bbox)
+    return bbox, click
+
+
+def _rescale_point(x: int, y: int, w: int, h: int) -> list[int]:
+    return [_clamp(int(round(x * w / 1000)), 0, w - 1), _clamp(int(round(y * h / 1000)), 0, h - 1)]
+
+
+def _looks_milligrid(targets: list[VisionTarget]) -> bool:
+    if not targets:
+        return False
+    return max(t.click[0] for t in targets) <= 1000 and max(t.click[1] for t in targets) <= 1000
+
+
+def _rescale_targets_milligrid(targets: list[VisionTarget], w: int, h: int) -> None:
+    for t in targets:
+        t.click = _rescale_point(t.click[0], t.click[1], w, h)
+        if len(t.bbox) >= 4:
+            bx1, by1 = _rescale_point(t.bbox[0], t.bbox[1], w, h)
+            bx2, by2 = _rescale_point(t.bbox[2], t.bbox[3], w, h)
+            if bx2 > bx1 and by2 > by1:
+                t.bbox = [bx1, by1, bx2, by2]
+
+
+def sanitize_targets(result: VisionResult, *, w: int, h: int, quiet: bool = False) -> list[VisionTarget]:
+    """Drop junk rows; optionally rescale 0–1000 coords; filter by screen layout."""
+    profile = screen_profile(result.screen_type)
+    kept: list[VisionTarget] = []
+
+    if _looks_milligrid(result.targets):
+        _rescale_targets_milligrid(result.targets, w, h)
+        result.warnings.append("rescaled coordinates from 0–1000 grid to 1024×768 pixels")
+
+    for t in result.targets:
+        label_key = t.label.strip().lower()
+        if label_key in IGNORE_TARGET_LABELS or "cursor" in label_key:
+            continue
+        if bbox_area_frac(t.bbox, w, h) > MAX_BBOX_AREA_FRAC:
+            continue
+        if profile and not click_in_profile(t.click[0], t.click[1], profile):
+            continue
+        kept.append(t)
+
+    dropped = len(result.targets) - len(kept)
+    if dropped:
+        msg = f"filtered {dropped} target(s) outside {result.screen_type} layout or junk labels"
+        result.warnings.append(msg)
+        log(msg, quiet=quiet)
+    result.targets = kept
+    return kept
+
+
+def valid_targets_for_screen(result: VisionResult) -> list[VisionTarget]:
+    profile = screen_profile(result.screen_type)
+    if not profile:
+        return result.targets
+    return [t for t in result.targets if click_in_profile(t.click[0], t.click[1], profile)]
+
+
+def needs_regional_retry(result: VisionResult) -> bool:
+    profile = screen_profile(result.screen_type)
+    if not profile or not profile.get("retry_prompt"):
+        return False
+    valid = valid_targets_for_screen(result)
+    return len(valid) == 0
+
+
+def assess_coord_confidence(result: VisionResult) -> str:
+    profile = screen_profile(result.screen_type)
+    if not result.targets:
+        return "none"
+    valid = valid_targets_for_screen(result) if profile else result.targets
+    if not valid:
+        return "low"
+    if len(valid) == len(result.targets):
+        return "high"
+    return "medium"
+
+
+def regional_retry_prompt(result: VisionResult) -> str | None:
+    profile = screen_profile(result.screen_type)
+    if profile:
+        return profile.get("retry_prompt")
+    return None
 
 
 def image_data_url(path: str) -> str:
@@ -305,28 +507,66 @@ def _parse_table_row(line: str, w: int, h: int) -> VisionTarget | None:
     label = cells[0]
     if not label or label.lower() in {"label", "(rows for each button)", "(one row per button, integer coords only)"}:
         return None
+    if label.strip().lower() in IGNORE_TARGET_LABELS:
+        return None
 
     rest = " ".join(cells[1:])
+    kv = _parse_kv_bbox_click(rest, w, h)
+    if kv:
+        bbox, click = kv
+        return VisionTarget(label=label, bbox=bbox, click=click)
+
+    points = _parse_paren_points(rest)
+
+    # Format: (x1,y1), (x2,y2) | (cx,cy)  OR  (x1,y1,x2,y2) style via flat nums
+    if len(points) >= 3:
+        (x1, y1), (x2, y2), (cx, cy) = points[0], points[1], points[-1]
+        bbox = _bbox_from_nums([x1, y1, x2, y2], w, h)
+        if bbox is None or not _valid_bbox(bbox, w, h):
+            return None
+        click = [_to_pixel(cx, w), _to_pixel(cy, h)]
+        return VisionTarget(label=label, bbox=bbox, click=click)
+
+    if len(points) == 2:
+        cx, cy = _to_pixel(points[0][0], w), _to_pixel(points[0][1], h)
+        cx2, cy2 = _to_pixel(points[1][0], w), _to_pixel(points[1][1], h)
+        if abs(cx2 - cx) > 30 or abs(cy2 - cy) > 30:
+            bbox = _bbox_from_nums([points[0][0], points[0][1], points[1][0], points[1][1]], w, h)
+            if bbox and _valid_bbox(bbox, w, h):
+                click = _click_from_bbox(bbox)
+                return VisionTarget(label=label, bbox=bbox, click=click)
+        cx, cy = cx2, cy2
+
+    if len(points) == 1:
+        cx, cy = _to_pixel(points[0][0], w), _to_pixel(points[0][1], h)
+        bbox = [
+            _clamp(cx - 20, 0, w - 1),
+            _clamp(cy - 10, 0, h - 1),
+            _clamp(cx + 20, 0, w - 1),
+            _clamp(cy + 10, 0, h - 1),
+        ]
+        return VisionTarget(label=label, bbox=bbox, click=[cx, cy])
+
     nums = _parse_int_list(rest)
     if nums is None:
         return None
 
-    # Two numbers → point click only; infer a small bbox
     if len(nums) == 2:
         cx, cy = _to_pixel(nums[0], w), _to_pixel(nums[1], h)
-        bbox = [_clamp(cx - 20, 0, w - 1), _clamp(cy - 10, 0, h - 1), _clamp(cx + 20, 0, w - 1), _clamp(cy + 10, 0, h - 1)]
-        if bbox[2] <= bbox[0]:
-            bbox[2] = bbox[0] + 1
-        if bbox[3] <= bbox[1]:
-            bbox[3] = bbox[1] + 1
+        bbox = [
+            _clamp(cx - 20, 0, w - 1),
+            _clamp(cy - 10, 0, h - 1),
+            _clamp(cx + 20, 0, w - 1),
+            _clamp(cy + 10, 0, h - 1),
+        ]
         return VisionTarget(label=label, bbox=bbox, click=[cx, cy])
 
     bbox = _bbox_from_nums(nums[:4], w, h)
     if bbox is None or not _valid_bbox(bbox, w, h):
         return None
 
-    click_nums = nums[4:] if len(nums) >= 6 else nums[4:6] if len(nums) >= 5 else []
-    click = _click_from_nums(click_nums, bbox, w, h)
+    click_nums = nums[4:6] if len(nums) >= 6 else []
+    click = _click_from_nums(click_nums, bbox, w, h) if click_nums else _click_from_bbox(bbox)
     return VisionTarget(label=label, bbox=bbox, click=click)
 
 
@@ -373,7 +613,7 @@ def parse_markdown_analysis(content: str, *, w: int, h: int) -> VisionResult:
 
     m = re.search(r"type:\s*(\w+)", content, re.I)
     if m:
-        result.screen_type = m.group(1).lower()
+        result.screen_type = normalize_screen_type(m.group(1))
 
     m = re.search(r"summary:\s*(.+)", content, re.I)
     if m:
@@ -446,7 +686,7 @@ def parse_vision_cursor(content: str, *, w: int, h: int) -> list[int] | None:
 
 
 def apply_calibration(result: VisionResult) -> None:
-    """Compare debug vs vision cursor; shift all target clicks by the offset."""
+    """Compare debug vs vision cursor; shift target clicks only when anchors agree."""
     cal = result.cursor
     if cal.debug is None:
         cal.reason = "no debug cursor (dosbox_mouse -a debug failed)"
@@ -469,7 +709,22 @@ def apply_calibration(result: VisionResult) -> None:
 
     if dist > MAX_CALIBRATION_OFFSET:
         cal.active = False
-        cal.reason = f"offset too large ({dx:+d},{dy:+d}, {dist:.0f}px) — using raw vision coords"
+        cal.reason = (
+            f"offset too large ({dx:+d},{dy:+d}, {dist:.0f}px) — "
+            "screenshot cursor likely out of sync; not shifting button coords"
+        )
+        result.warnings.append(cal.reason)
+        return
+
+    # Do not shift buttons when vision cursor disagrees with layout (e.g. center-biased tip)
+    profile = screen_profile(result.screen_type)
+    if profile and not click_in_profile(cal.vision[0], cal.vision[1], profile):
+        cal.active = False
+        cal.reason = (
+            f"vision cursor ({cal.vision[0]},{cal.vision[1]}) outside {result.screen_type} "
+            f"layout — skipping button calibration"
+        )
+        result.warnings.append(cal.reason)
         return
 
     cal.active = True
@@ -536,8 +791,12 @@ def pick_next_target(result: VisionResult) -> VisionTarget | None:
 
 def format_summary(result: VisionResult) -> str:
     parts = [f"screen={result.screen_type}"]
+    if result.coord_confidence not in ("unknown", "high"):
+        parts.append(f"coord_confidence={result.coord_confidence}")
     if result.summary:
         parts.append(result.summary)
+    if result.cursor.debug:
+        parts.append(f"debug_cursor=({result.cursor.debug[0]},{result.cursor.debug[1]})")
     if result.cursor.active and result.cursor.offset:
         ox, oy = result.cursor.offset
         parts.append(f"calibrated ({ox:+d},{oy:+d})")
@@ -590,6 +849,30 @@ def finalize_calibration(result: VisionResult, *, quiet: bool = False) -> None:
         log(f"calibration: {result.cursor.reason}", quiet=quiet)
 
 
+def _fetch_json_targets(
+    *,
+    prompt: str,
+    image_path: str,
+    api_base: str,
+    api_key: str,
+    model: str,
+    timeout: float,
+    quiet: bool,
+    source_label: str,
+) -> list[VisionTarget]:
+    data = chat_completion(
+        api_base=api_base,
+        api_key=api_key,
+        model=model,
+        prompt=prompt,
+        image_path=image_path,
+        timeout=timeout,
+        quiet=quiet,
+    )
+    w, h = screen_size()
+    return parse_json_targets(extract_content(data), w=w, h=h)
+
+
 def analyze_image(
     *,
     image_path: str,
@@ -603,14 +886,13 @@ def analyze_image(
     calibrate: bool = False,
 ) -> VisionResult:
     w, h = screen_size()
-    prompt = build_vision_prompt(known_cursor if calibrate else None)
 
-    log("step 1/3: calling vision model for screen description", quiet=quiet)
+    log("step 1/4: calling vision model for screen description", quiet=quiet)
     data = chat_completion(
         api_base=api_base,
         api_key=api_key,
         model=model,
-        prompt=prompt,
+        prompt=build_vision_prompt(),
         image_path=image_path,
         timeout=timeout,
         quiet=quiet,
@@ -619,10 +901,63 @@ def analyze_image(
     result = parse_markdown_analysis(content, w=w, h=h)
     result.raw_markdown = content
     result.coords_source = "primary"
+    sanitize_targets(result, w=w, h=h, quiet=quiet)
 
     if calibrate and known_cursor:
         result.cursor.debug = known_cursor
-        finalize_calibration(result, quiet=quiet)
+
+    if retry_coords and needs_regional_retry(result):
+        regional = regional_retry_prompt(result)
+        if regional:
+            log(
+                f"step 2/4: coords outside {result.screen_type} layout — regional JSON retry",
+                quiet=quiet,
+            )
+            targets = _fetch_json_targets(
+                prompt=regional,
+                image_path=image_path,
+                api_base=api_base,
+                api_key=api_key,
+                model=model,
+                timeout=timeout,
+                quiet=quiet,
+                source_label="regional",
+            )
+            if targets:
+                result.targets = targets
+                result.coords_source = "retry_regional"
+                sanitize_targets(result, w=w, h=h, quiet=quiet)
+                if not result.next_action or result.next_action.lower() == "none":
+                    result.next_action = targets[0].label
+                log(f"parsed {len(targets)} target(s) from regional retry", quiet=quiet)
+
+    if result.targets and result.coords_source == "primary":
+        log(f"parsed {len(result.targets)} target(s) from markdown", quiet=quiet)
+
+    if not result.targets and retry_coords:
+        log("step 3/4: no usable targets — generic JSON retry", quiet=quiet)
+        targets = _fetch_json_targets(
+            prompt=SAN5_COORDS_RETRY_PROMPT,
+            image_path=image_path,
+            api_base=api_base,
+            api_key=api_key,
+            model=model,
+            timeout=timeout,
+            quiet=quiet,
+            source_label="json",
+        )
+        if targets:
+            result.targets = targets
+            result.coords_source = "retry_json"
+            sanitize_targets(result, w=w, h=h, quiet=quiet)
+            if not result.next_action or result.next_action.lower() == "none":
+                result.next_action = targets[0].label
+            log(f"parsed {len(targets)} target(s) from JSON retry", quiet=quiet)
+        else:
+            log("warning: retry still returned no usable pixel coordinates", quiet=quiet)
+
+    if calibrate and known_cursor:
+        result.cursor.debug = known_cursor
         if result.cursor.vision is None:
             vision = retry_cursor_vision(
                 image_path=image_path,
@@ -634,42 +969,21 @@ def analyze_image(
             )
             if vision:
                 result.cursor.vision = vision
-                finalize_calibration(result, quiet=quiet)
+        finalize_calibration(result, quiet=quiet)
+        if result.cursor.debug and result.cursor.vision:
+            dx = abs(result.cursor.debug[0] - result.cursor.vision[0])
+            dy = abs(result.cursor.debug[1] - result.cursor.vision[1])
+            if dx + dy > 40:
+                result.warnings.append(
+                    f"debug cursor {result.cursor.debug} vs vision tip {result.cursor.vision} "
+                    f"— capture may be stale; prefer debug for cursor, layout-filtered coords for buttons"
+                )
 
-    if result.targets:
-        log(f"parsed {len(result.targets)} target(s) from markdown", quiet=quiet)
-        return result
-
-    if not retry_coords:
-        log("warning: no pixel targets in response", quiet=quiet)
-        if calibrate and known_cursor:
-            result.cursor.debug = known_cursor
-            finalize_calibration(result, quiet=quiet)
-        return result
-
-    log("step 2/3: no pixel coords — retrying with JSON-only prompt", quiet=quiet)
-    data = chat_completion(
-        api_base=api_base,
-        api_key=api_key,
-        model=model,
-        prompt=SAN5_COORDS_RETRY_PROMPT,
-        image_path=image_path,
-        timeout=timeout,
-        quiet=quiet,
-    )
-    retry_content = extract_content(data)
-    targets = parse_json_targets(retry_content, w=w, h=h)
-    if targets:
-        result.targets = targets
-        result.coords_source = "retry_json"
-        if not result.next_action or result.next_action.lower() == "none":
-            result.next_action = targets[0].label
-        log(f"parsed {len(targets)} target(s) from JSON retry", quiet=quiet)
-        if calibrate and known_cursor:
-            result.cursor.debug = known_cursor
-            finalize_calibration(result, quiet=quiet)
-    else:
-        log("warning: retry still returned no usable pixel coordinates", quiet=quiet)
+    result.coord_confidence = assess_coord_confidence(result)
+    if result.coord_confidence == "low":
+        result.warnings.append(
+            "no targets passed layout validation — use skills/san5-ui known coords or re-capture"
+        )
 
     return result
 
@@ -694,7 +1008,10 @@ def result_to_json(result: VisionResult) -> dict:
         "message": result.message,
         "next_action": result.next_action,
         "coords_source": result.coords_source,
+        "coord_confidence": result.coord_confidence,
+        "warnings": result.warnings,
         "cursor": asdict(result.cursor),
+        "debug_cursor": result.cursor.debug,
         "targets": [target_to_dict(t, result) for t in result.targets],
         "recommended_click": rec,
         "summary_line": format_summary(result),
@@ -842,7 +1159,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"error: {e.reason}", file=sys.stderr)
         return 1
 
-    log(f"step 3/3: done — {format_summary(result)}", quiet=args.quiet)
+    log(f"step 4/4: done — {format_summary(result)}", quiet=args.quiet)
 
     if args.raw:
         print(json.dumps(result_to_json(result), ensure_ascii=False, indent=2))
