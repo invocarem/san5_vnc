@@ -25,7 +25,7 @@ Launch: `./skills/san5-starter/scripts/san5_start.sh`
 
 ## Prerequisites
 
-`dosbox`, `xdotool`, `Xvfb`, `x11vnc`, `xsetroot`, `xdpyinfo`, `scrot`, Python 3 (stdlib for mouse scripts)
+`dosbox`, `xdotool`, `Xvfb`, `x11vnc`, `xsetroot`, `xdpyinfo`, `scrot`, Python 3 (stdlib for mouse scripts), `uv` (for optional local OCR deps)
 
 ## Optional env (launch)
 
@@ -51,6 +51,20 @@ Vision: read the PNG in-process when the agent supports images. Otherwise use `s
 ```
 
 Coordinates are 1024×768 from origin (0,0). Script auto-parses pixel coords and retries if the model returns fractions only.
+
+## Local OCR (EasyOCR)
+
+| Item | Value |
+|------|-------|
+| Workspace Python | `uv` project rooted at `~/.openclaw/workspace` |
+| Sync deps | `uv sync --group easyocr` |
+| Capture + OCR | `./skills/dosbox-easyocr/scripts/san5_ocr.sh` |
+| Direct script | `uv run --group easyocr python skills/dosbox-easyocr/scripts/analyze_screenshot.py --capture --json` |
+| Match label | `--match 確認` / `--match 開始新遊戲` |
+| Languages | `SAN5_EASYOCR_LANGS=ch_tra,en` |
+| Min confidence | `SAN5_EASYOCR_MIN_CONFIDENCE=0.5` |
+
+Use OCR for text-heavy dialogs and menus. For non-text UI or when you need a model-picked next action, use `minicpm-vision` instead.
 
 ## ModelBest (MiniCPM-V, no native vision)
 

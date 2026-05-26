@@ -11,6 +11,7 @@ OpenClaw workspace for **Romance of the Three Kingdoms V** on VNC + DOSBox.
 | `skills/san5-ui/` | Known UI coords and click procedures (markdown only) |
 | `skills/dosbox-mouse/` | Pointer move/click via `dosbox_mouse.py` |
 | `skills/screenshot/` | Capture framebuffer with `scrot` for vision |
+| `skills/dosbox-easyocr/` | Local OCR for visible text labels in screenshots |
 | `skills/minicpm-vision/` | MiniCPM-V API when agent has no native vision |
 
 Environment-specific values (game path, VNC host, ports) live in **`TOOLS.md`**, not here.
@@ -41,9 +42,20 @@ Workflow: `move --sync` → `debug -v` → `click`. First 確認 dialog: see `sa
 4. Use **dosbox-mouse** for interaction; describe what you see to the user
 5. For vision-driven play: look → click → verify (see below)
 
+### Local OCR (EasyOCR)
+
+When the target is a visible text label, prefer `dosbox-easyocr` first. It is local, fast, and returns bbox/click coordinates for labels such as `確認`, `取消`, and `開始新遊戲`.
+
+```bash
+./skills/dosbox-easyocr/scripts/san5_ocr.sh
+./skills/dosbox-easyocr/scripts/san5_ocr.sh san5_screenshot.png --match 確認
+```
+
+Use `recommended_click.click` from JSON when `--match` succeeds, then verify with `dosbox_mouse -a debug -v` before clicking.
+
 ### No native vision (MiniCPM-V)
 
-The agent **cannot read PNGs**. Use `minicpm-vision` — it returns descriptions **and** parsed pixel coords (with auto-retry if the model sends fractions instead of pixels).
+The agent **cannot read PNGs**. Use `minicpm-vision` when OCR is not enough — it returns descriptions, picks likely next actions, and parses pixel coords (with auto-retry if the model sends fractions instead of pixels).
 
 **Always use `--json`** and read `recommended_click.use_click` (calibrated when cursor anchor worked):
 

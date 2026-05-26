@@ -1,0 +1,11 @@
+[project]
+name = "openclaw-workspace"
+version = "0.1.0"
+description = "Utilities and agent skills for the OpenClaw san5 workspace."
+requires-python = ">=3.12"
+dependencies = []
+
+[dependency-groups]
+easyocr = [
+    "easyocr",
+]

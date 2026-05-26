@@ -13,6 +13,12 @@ Run **san5** in DOSBox on virtual display `:99`, view and control over **VNC** (
 
 See `TOOLS.md`. Game files live under `~/Games/san5` (or `SAN5_GAME_DIR`).
 
+Optional local OCR tooling is managed with `uv` from the workspace root:
+
+```bash
+uv sync --group easyocr
+```
+
 ## Quick start
 
 ```bash
@@ -57,6 +63,12 @@ python3 skills/dosbox-mouse/scripts/dosbox_mouse.py -a click
 │   │   └── scripts/dosbox_mouse.py
 │   ├── screenshot/
 │   │   └── SKILL.md
+│   ├── dosbox-easyocr/
+│   │   ├── SKILL.md
+│   │   └── scripts/
+│   │       ├── analyze_screenshot.py
+│   │       ├── bootstrap.sh
+│   │       └── san5_ocr.sh
 │   └── minicpm-vision/
 │       ├── SKILL.md
 │       └── scripts/
@@ -64,7 +76,18 @@ python3 skills/dosbox-mouse/scripts/dosbox_mouse.py -a click
 │           └── san5_look.sh
 ```
 
-Vision play: capture → analyze (native vision or `minicpm-vision`) → `dosbox_mouse` move → debug → click (see `skills/dosbox-mouse/SKILL.md`). Known coords: `skills/san5-ui/SKILL.md`.
+Vision play: capture → analyze (native vision, `dosbox-easyocr`, or `minicpm-vision`) → `dosbox_mouse` move → debug → click (see `skills/dosbox-mouse/SKILL.md`). Known coords: `skills/san5-ui/SKILL.md`.
+
+## Local OCR
+
+Use `dosbox-easyocr` when the target is visible text on screen:
+
+```bash
+./skills/dosbox-easyocr/scripts/san5_ocr.sh
+./skills/dosbox-easyocr/scripts/san5_ocr.sh san5_screenshot.png --match 確認
+```
+
+`--json` output includes OCR `targets[]` plus `recommended_click` when `--match` succeeds.
 
 ## `dosbox_mouse.py`
 

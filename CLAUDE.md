@@ -34,6 +34,9 @@ skills/
 │       └── dosbox_mouse.py     # move/click/release inside DOSBox
 ├── screenshot/             # Framebuffer capture
 │   └── SKILL.md
+├── dosbox-easyocr/         # Local OCR for text-based buttons and menus
+│   └── scripts/
+│       └── analyze_screenshot.py
 ├── minicpm-vision/         # Vision API fallback (when agent has no native vision)
 │   └── scripts/
 │       └── analyze_screenshot.py
@@ -81,7 +84,9 @@ xdotool search --name DOSBox
 ### Vision-driven play
 
 ```bash
-# Analyze (native vision on PNG, or minicpm-vision --capture)
+# Analyze (native vision on PNG, dosbox-easyocr, or minicpm-vision --capture)
+./skills/dosbox-easyocr/scripts/san5_ocr.sh san5_screenshot.png --match 確認
+
 # Then click with verify:
 python3 skills/dosbox-mouse/scripts/dosbox_mouse.py -a move -p CX CY --sync
 sleep 0.2
@@ -100,6 +105,16 @@ export MODELBEST_API_KEY="sk-pQ8L2zF3XmR5kY9wV4jB7hN1tC6vM0xG3aD5sH2bJ9lK4cZ8"
 ```
 
 Agent must announce progress before/after (20–60s API); see `AGENTS.md` Visibility section.
+
+### Local OCR (text-driven screens)
+
+```bash
+uv sync --group easyocr
+./skills/dosbox-easyocr/scripts/san5_ocr.sh
+./skills/dosbox-easyocr/scripts/san5_ocr.sh san5_screenshot.png --match 開始新遊戲
+```
+
+Use OCR first for text-heavy menus and dialogs. Use `minicpm-vision` when OCR misses stylized text, non-text buttons, or when the agent needs a semantic next action.
 
 ## Architecture
 
@@ -126,3 +141,6 @@ Agent must announce progress before/after (20–60s API); see `AGENTS.md` Visibi
 | `SAN5_GAME_DIR` | `~/Games/san5` | san5_start.sh |
 | `SAN5_ENTER_COUNT/DELAY` | `4` / `2` | Splash Enter keypresses |
 | `MODELBEST_API_KEY` | — | Vision API auth |
+| `SAN5_EASYOCR_LANGS` | `ch_tra,en` | Local OCR languages |
+| `SAN5_EASYOCR_MIN_CONFIDENCE` | `0.5` | OCR result threshold |
+| `SAN5_EASYOCR_GPU` | `0` | Set `1` to enable EasyOCR GPU mode |
