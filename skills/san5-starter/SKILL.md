@@ -44,7 +44,7 @@ After launch: connect VNC (`TOOLS.md`), then follow **`san5-ui`** for the first 
 | `SAN5_WINDOW_X` / `SAN5_WINDOW_Y` | `0` / `0` | DOSBox window position |
 | `SAN5_ENTER_COUNT` / `SAN5_ENTER_DELAY` | `4` / `2` | Splash Enter keypresses |
 | `SAN5_DOSBOX_WAIT` | `3` | Seconds after DOSBox start before focus |
-| `SAN5_MOUSE_SCRIPT` | `dosbox_mouse.py` | Override mouse script path |
+| `SAN5_MOUSE_SCRIPT` | `san5_mouse.py` | Override mouse script path |
 
 ## Related skills
 
@@ -52,7 +52,7 @@ After launch: connect VNC (`TOOLS.md`), then follow **`san5-ui`** for the first 
 |-------|------|
 | `san5-x11vnc` | Start VNC only (without game) |
 | `san5-ui` | Button coords and first-dialog procedure |
-| `dosbox-mouse` | move / debug / click mechanics |
+| `mouse` | move / debug / click mechanics |
 
 ## Stop
 

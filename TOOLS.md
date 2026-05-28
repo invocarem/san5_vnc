@@ -25,12 +25,12 @@ Launch: `./skills/san5-starter/scripts/san5_start.sh`
 
 ## Prerequisites
 
-`dosbox`, `xdotool`, `Xvfb`, `x11vnc`, `xsetroot`, `xdpyinfo`, `scrot`, Python 3 (stdlib for mouse scripts), `uv` (for optional local OCR deps)
+`dosbox`, `xdotool`, `Xvfb`, `x11vnc`, `xsetroot`, `xdpyinfo`, `scrot`, Python 3 (stdlib for mouse scripts), `uv` (for EasyOCR deps)
 
 ## Optional env (launch)
 
 - `SAN5_ENTER_COUNT` / `SAN5_ENTER_DELAY` — splash Enter keypresses
-- `SAN5_MOUSE_SCRIPT` — override path to `dosbox_mouse.py`
+- `SAN5_MOUSE_SCRIPT` — override path to `san5_mouse.py`
 
 ## Screenshot / vision play
 
@@ -39,18 +39,13 @@ Launch: `./skills/san5-starter/scripts/san5_start.sh`
 | Display | `:99` (`SAN5_DISPLAY`) |
 | Screen / window | `1024×768` (`SAN5_SCREEN_WIDTH` / `SAN5_SCREEN_HEIGHT`) |
 | DOSBox position | `(0,0)` (`SAN5_WINDOW_X` / `SAN5_WINDOW_Y`) |
-| Default capture path | `san5_screenshot.png` (gitignored) |
-| Capture | `scrot -D :99 -a 0,0,1024,768 san5_screenshot.png` |
+| Default screenshot | `screenshots/latest.png` (`SAN5_SCREENSHOT`, gitignored dir) |
+| Run archive | `screenshots/run1/001.png`, … (`SAN5_RUN`, default `run1`) |
+| Capture | `python3 skills/screenshot/scripts/san5_capture.py` (`--new-run`, `--run NAME`) |
 | First 確認 click | `skills/san5-ui/SKILL.md` → **first_cd_confirm** |
-| Click | `dosbox_mouse.py -a move/debug/click` (see `dosbox-mouse` skill) |
+| Click | `san5_mouse.py -a move/debug/click` (see `mouse` skill) |
 
-Vision: read the PNG in-process when the agent supports images. Otherwise use `skills/minicpm-vision`:
-
-```bash
-./skills/minicpm-vision/scripts/san5_look.sh   # capture + JSON with recommended_click
-```
-
-Coordinates are 1024×768 from origin (0,0). Script auto-parses pixel coords and retries if the model returns fractions only.
+Coordinates are 1024×768 from origin (0,0). Prefer EasyOCR for text labels; verify every click with `debug -v` before promoting coords to `san5-ui`.
 
 ## Local OCR (EasyOCR)
 
@@ -58,19 +53,11 @@ Coordinates are 1024×768 from origin (0,0). Script auto-parses pixel coords and
 |------|-------|
 | Workspace Python | `uv` project rooted at `~/.openclaw/workspace` |
 | Sync deps | `uv sync --group easyocr` |
-| Capture + OCR | `./skills/dosbox-easyocr/scripts/san5_ocr.sh` |
-| Direct script | `uv run --group easyocr python skills/dosbox-easyocr/scripts/analyze_screenshot.py --capture --json` |
-| Match label | `--match 確認` / `--match 開始新遊戲` |
+| Capture + OCR | `uv run --group easyocr python skills/easyocr/scripts/san5_ocr.py --json` |
+| Match label | `…/san5_ocr.py --json --match 確認` |
+| OCR only (PNG exists) | `…/san5_ocr.py --no-capture --json` |
 | Languages | `SAN5_EASYOCR_LANGS=ch_tra,en` |
 | Min confidence | `SAN5_EASYOCR_MIN_CONFIDENCE=0.5` |
+| GPU | `SAN5_EASYOCR_GPU=1` to enable |
 
-Use OCR for text-heavy dialogs and menus. For non-text UI or when you need a model-picked next action, use `minicpm-vision` instead.
-
-## ModelBest (MiniCPM-V, no native vision)
-
-| Item | Value |
-|------|-------|
-| API base | `https://api.modelbest.cn/v1` |
-| Model | `MiniCPM-V-4.6-Instruct` |
-| Public trial key | `sk-pQ8L2zF3XmR5kY9wV4jB7hN1tC6vM0xG3aD5sH2bJ9lK4cZ8` (see [api.md](https://github.com/OpenBMB/MiniCPM-V/blob/main/docs/api.md)) |
-| Analyze | `./skills/minicpm-vision/scripts/san5_look.sh` (or `--capture --json`) |
+Use OCR for text-heavy dialogs and menus. For non-text UI, add anchors to `skills/san5-ui/SKILL.md` or use agent native vision on `screenshots/latest.png` when available.

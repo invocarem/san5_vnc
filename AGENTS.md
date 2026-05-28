@@ -9,16 +9,15 @@ OpenClaw workspace for **Romance of the Three Kingdoms V** on VNC + DOSBox.
 | `skills/san5-x11vnc/` | Virtual display + VNC (`x11vnc_start.sh`) |
 | `skills/san5-starter/` | Launch DOSBox + game (`san5_start.sh`) |
 | `skills/san5-ui/` | Known UI coords and click procedures (markdown only) |
-| `skills/dosbox-mouse/` | Pointer move/click via `dosbox_mouse.py` |
+| `skills/mouse/` | Pointer move/click via `san5_mouse.py` |
 | `skills/screenshot/` | Capture framebuffer with `scrot` for vision |
-| `skills/dosbox-easyocr/` | Local OCR for visible text labels in screenshots |
-| `skills/minicpm-vision/` | MiniCPM-V API when agent has no native vision |
+| `skills/easyocr/` | Local OCR for visible text labels in screenshots |
 
 Environment-specific values (game path, VNC host, ports) live in **`TOOLS.md`**, not here.
 
 ### Mouse: sync ≠ capture
 
-Read `skills/dosbox-mouse/SKILL.md` (**Concepts**) for detail. Short version:
+Read `skills/mouse/SKILL.md` (**Concepts**) for detail. Short version:
 
 | Term | Command |
 |------|---------|
@@ -39,52 +38,39 @@ Workflow: `move --sync` → `debug -v` → `click`. First 確認 dialog: see `sa
 1. Check VNC: `ps aux | grep x11vnc` — start `san5-x11vnc` if needed
 2. Launch game if DOSBox is not running (`san5-starter`)
 3. User views via VNC (`TOOLS.md` for host:port)
-4. Use **dosbox-mouse** for interaction; describe what you see to the user
-5. For vision-driven play: look → click → verify (see below)
+4. Use **mouse** for interaction; describe what you see to the user
+5. For vision-driven play: capture → OCR → click → verify (see below)
 
-### Local OCR (EasyOCR)
+### Local OCR (EasyOCR) — primary screen analysis
 
-When the target is a visible text label, prefer `dosbox-easyocr` first. It is local, fast, and returns bbox/click coordinates for labels such as `確認`, `取消`, and `開始新遊戲`.
-
-```bash
-./skills/dosbox-easyocr/scripts/san5_ocr.sh
-./skills/dosbox-easyocr/scripts/san5_ocr.sh san5_screenshot.png --match 確認
-```
-
-Use `recommended_click.click` from JSON when `--match` succeeds, then verify with `dosbox_mouse -a debug -v` before clicking.
-
-### No native vision (MiniCPM-V)
-
-The agent **cannot read PNGs**. Use `minicpm-vision` when OCR is not enough — it returns descriptions, picks likely next actions, and parses pixel coords (with auto-retry if the model sends fractions instead of pixels).
-
-**Always use `--json`** and read `recommended_click.use_click` (calibrated when cursor anchor worked):
+Use `easyocr` for text labels (`確認`, `取消`, `開始新遊戲`, etc.). It captures a fresh frame, runs local OCR, and returns bbox/click coordinates.
 
 ```bash
-./skills/minicpm-vision/scripts/san5_look.sh
-# debug cursor → capture → analyze → calibrated coords
+uv run --group easyocr python skills/easyocr/scripts/san5_ocr.py --json
+uv run --group easyocr python skills/easyocr/scripts/san5_ocr.py --json --match 確認
 ```
 
-`san5_look.sh` auto-calibrates: runs `dosbox_mouse -a debug` for the true cursor position, asks MiniCPM-V to find the game cursor in the PNG, computes offset, shifts all button coords.
+Use `recommended_click.click` from JSON when `--match` succeeds, then **always** verify with `san5_mouse -a debug -v` before clicking. Promote verified coords to `skills/san5-ui/SKILL.md`.
 
-Then click: `dosbox_mouse.py -a move -p CX CY --sync` → **debug -v** → click (first 確認: see `san5-ui`).
+For screens without readable text, use **san5-ui** anchors or agent native vision on the PNG if available.
 
 ### Visibility — never go silent
 
-Vision API calls take **20–60 seconds**. The user must always know you are working — do not wait for them to ask.
+OCR can take several seconds on first run (model download). The user should know you are working.
 
-1. **Before** a long step, send one short line in chat: e.g. `Looking at the screen (MiniCPM-V, ~30s)…`
-2. **Run** the script — `[san5-vision]` progress prints on stderr in the terminal
-3. **After** analysis, report `summary_line` from JSON in chat: e.g. `Main menu → click 開始新遊戲 at (512,308) [calibrated (+4,+2)]`
-4. **Before** each click: `Clicking 開始新遊戲 at (512,308)…` then move `--sync` → **debug -v** (must match target within ~12px) → click
-5. **After** click: `Capturing again to verify…` if the dialog may still be open
+1. **Before** capture/OCR: e.g. `Capturing screen and running OCR…`
+2. **Run** `san5_ocr.py` — progress on stderr
+3. **After** analysis, report `summary_line` from JSON in chat
+4. **Before** each click: `Clicking <label> at (X,Y)…` then move `--sync` → **debug -v** (within ~12 px) → click
+5. **After** click: capture/OCR again if the dialog may still be open
 
-If coords are missing after retry, say so and describe the screen — do not silently stall.
+If `--match` fails or coords look wrong, say so — do not click blindly. Re-run `san5_ocr.py` (capture + OCR) for a fresh frame.
 
 ## Safety
 
 - Never `pkill -9 x11vnc` / `Xvfb` without asking
 - Confirm DOSBox is running before click sequences
-- Run `dosbox_mouse.py -a debug` before long coordinate chains
+- Run `san5_mouse.py -a debug` before long coordinate chains
 
 ## Memory
 

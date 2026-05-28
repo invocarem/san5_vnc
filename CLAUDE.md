@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-OpenClaw workspace that runs **Romance of the Three Kingdoms V (san5)** in DOSBox on a virtual display (`:99`), viewable and controllable over **VNC** (port `5999`). The agent plays the game by capturing screenshots, analyzing them with vision, and clicking targets via `dosbox_mouse.py`.
+OpenClaw workspace that runs **Romance of the Three Kingdoms V (san5)** in DOSBox on a virtual display (`:99`), viewable and controllable over **VNC** (port `5999`). The agent plays the game by capturing screenshots, analyzing them with OCR (or native vision), and clicking targets via `san5_mouse.py`.
 
 ## Key Files
 
@@ -29,17 +29,16 @@ skills/
 │       └── san5-dosbox.conf
 ├── san5-ui/                # Game UI coords (markdown only)
 │   └── SKILL.md
-├── dosbox-mouse/           # Pointer control
+├── mouse/           # Pointer control
 │   └── scripts/
-│       └── dosbox_mouse.py     # move/click/release inside DOSBox
-├── screenshot/             # Framebuffer capture
-│   └── SKILL.md
-├── dosbox-easyocr/         # Local OCR for text-based buttons and menus
-│   └── scripts/
-│       └── analyze_screenshot.py
-├── minicpm-vision/         # Vision API fallback (when agent has no native vision)
-│   └── scripts/
-│       └── analyze_screenshot.py
+│       └── san5_mouse.py     # move/click/release inside DOSBox
+├── screenshot/             # Framebuffer capture (scrot)
+│   ├── SKILL.md
+│   └── scripts/san5_capture.py
+└── easyocr/         # Capture + local OCR (san5_ocr.py)
+    └── scripts/
+        ├── bootstrap.sh
+        └── san5_ocr.py
 ```
 
 ## Common Commands
@@ -63,58 +62,39 @@ pkill -9 x11vnc Xvfb    # tears down VNC — ask user first
 ### Mouse Control
 
 ```bash
-python3 skills/dosbox-mouse/scripts/dosbox_mouse.py -a move   -p X Y [--sync]
-python3 skills/dosbox-mouse/scripts/dosbox_mouse.py -a debug  [-v]
-python3 skills/dosbox-mouse/scripts/dosbox_mouse.py -a click
-python3 skills/dosbox-mouse/scripts/dosbox_mouse.py -a rclick
-python3 skills/dosbox-mouse/scripts/dosbox_mouse.py -a release
-python3 skills/dosbox-mouse/scripts/dosbox_mouse.py -a dismiss
+python3 skills/mouse/scripts/san5_mouse.py -a move   -p X Y [--sync]
+python3 skills/mouse/scripts/san5_mouse.py -a debug  [-v]
+python3 skills/mouse/scripts/san5_mouse.py -a click
+python3 skills/mouse/scripts/san5_mouse.py -a rclick
+python3 skills/mouse/scripts/san5_mouse.py -a release
+python3 skills/mouse/scripts/san5_mouse.py -a dismiss
 ```
 
-Sync (`move --sync`), capture (`click`), and release (`release`) are different — see `skills/dosbox-mouse/SKILL.md` (**Concepts**).
+Sync (`move --sync`), capture (`click`), and release (`release`) are different — see `skills/mouse/SKILL.md` (**Concepts**).
 
 ### Screenshot
 
 ```bash
-scrot -D :99 -a 0,0,1024,768 san5_screenshot.png
-export DISPLAY=:99
-xdotool search --name DOSBox
+./skills/screenshot/scripts/san5_capture.py
+# → screenshots/latest.png
 ```
 
-### Vision-driven play
+### Vision-driven play (EasyOCR)
 
 ```bash
-# Analyze (native vision on PNG, dosbox-easyocr, or minicpm-vision --capture)
-./skills/dosbox-easyocr/scripts/san5_ocr.sh san5_screenshot.png --match 確認
+uv sync --group easyocr
+uv run --group easyocr python skills/easyocr/scripts/san5_ocr.py --json --match 確認
 
 # Then click with verify:
-python3 skills/dosbox-mouse/scripts/dosbox_mouse.py -a move -p CX CY --sync
+python3 skills/mouse/scripts/san5_mouse.py -a move -p CX CY --sync
 sleep 0.2
-python3 skills/dosbox-mouse/scripts/dosbox_mouse.py -a debug -v
-python3 skills/dosbox-mouse/scripts/dosbox_mouse.py -a click
+python3 skills/mouse/scripts/san5_mouse.py -a debug -v
+python3 skills/mouse/scripts/san5_mouse.py -a click
 
 # First CD/確認 dialog: see skills/san5-ui/SKILL.md (first_cd_confirm)
 ```
 
-### Vision API (fallback, no native vision)
-
-```bash
-export MODELBEST_API_KEY="sk-pQ8L2zF3XmR5kY9wV4jB7hN1tC6vM0xG3aD5sH2bJ9lK4cZ8"
-./skills/minicpm-vision/scripts/san5_look.sh
-# → JSON with recommended_click.click for dosbox_mouse
-```
-
-Agent must announce progress before/after (20–60s API); see `AGENTS.md` Visibility section.
-
-### Local OCR (text-driven screens)
-
-```bash
-uv sync --group easyocr
-./skills/dosbox-easyocr/scripts/san5_ocr.sh
-./skills/dosbox-easyocr/scripts/san5_ocr.sh san5_screenshot.png --match 開始新遊戲
-```
-
-Use OCR first for text-heavy menus and dialogs. Use `minicpm-vision` when OCR misses stylized text, non-text buttons, or when the agent needs a semantic next action.
+Use OCR for text-heavy menus and dialogs. Promote verified coords to `skills/san5-ui/SKILL.md`. For non-text UI, use san5-ui anchors or native vision on the PNG when the agent supports images.
 
 ## Architecture
 
@@ -128,7 +108,7 @@ Use OCR first for text-heavy menus and dialogs. Use `minicpm-vision` when OCR mi
 
 - Never `pkill -9 x11vnc` or `Xvfb` without asking the user
 - Confirm DOSBox is running before any click sequence
-- Run `dosbox_mouse.py -a debug` before long coordinate chains
+- Run `san5_mouse.py -a debug` before long coordinate chains
 - Always tie click coordinates to a visible bounding box from the current screenshot
 - On `release`, re-capture (`-a click` after `move`) before more clicks
 
@@ -137,10 +117,10 @@ Use OCR first for text-heavy menus and dialogs. Use `minicpm-vision` when OCR mi
 | Variable | Default | Used By |
 |----------|---------|---------|
 | `SAN5_DISPLAY` | `:99` | All scripts |
+| `SAN5_SCREENSHOT` | `screenshots/latest.png` | Capture + OCR default path |
 | `SAN5_SCREEN_WIDTH/HEIGHT` | `1024` / `768` | Screenshot, launch |
 | `SAN5_GAME_DIR` | `~/Games/san5` | san5_start.sh |
 | `SAN5_ENTER_COUNT/DELAY` | `4` / `2` | Splash Enter keypresses |
-| `MODELBEST_API_KEY` | — | Vision API auth |
 | `SAN5_EASYOCR_LANGS` | `ch_tra,en` | Local OCR languages |
 | `SAN5_EASYOCR_MIN_CONFIDENCE` | `0.5` | OCR result threshold |
 | `SAN5_EASYOCR_GPU` | `0` | Set `1` to enable EasyOCR GPU mode |

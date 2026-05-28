@@ -5,13 +5,13 @@ Coordinates are window-relative (origin top-left), typically 0..1024 x 0..768.
 Uses xdotool on the VNC display started by x11vnc_start.sh.
 
 Examples:
-  python3 skills/dosbox-mouse/scripts/dosbox_mouse.py -a move -p 400 323 --sync
-  python3 skills/dosbox-mouse/scripts/dosbox_mouse.py -a debug -v
-  python3 skills/dosbox-mouse/scripts/dosbox_mouse.py -a click
-  ./dosbox_mouse.py -a rclick
-  ./dosbox_mouse.py -a release
-  ./dosbox_mouse.py -a dismiss
-  ./dosbox_mouse.py -a debug -v
+  python3 skills/mouse/scripts/san5_mouse.py -a move -p 400 323 --sync
+  python3 skills/mouse/scripts/san5_mouse.py -a debug -v
+  python3 skills/mouse/scripts/san5_mouse.py -a click
+  ./san5_mouse.py -a rclick
+  ./san5_mouse.py -a release
+  ./san5_mouse.py -a dismiss
+  ./san5_mouse.py -a debug -v
 
 Environment:
   SAN5_DISPLAY  X11 display (default :99)

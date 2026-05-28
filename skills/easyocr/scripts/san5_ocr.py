@@ -1,5 +1,18 @@
 #!/usr/bin/env python3
-"""Run EasyOCR on a san5 screenshot and print text targets with coordinates."""
+"""Capture (optional) and run EasyOCR on a san5 screenshot.
+
+Examples:
+  uv run --group easyocr python skills/easyocr/scripts/san5_ocr.py --json
+  uv run --group easyocr python skills/easyocr/scripts/san5_ocr.py --json --match 確認
+  uv run --group easyocr python skills/easyocr/scripts/san5_ocr.py --no-capture --json
+  python3 skills/screenshot/scripts/san5_capture.py  # capture only
+
+Environment:
+  SAN5_SCREENSHOT          Default PNG after capture (default: screenshots/latest.png)
+  SAN5_EASYOCR_LANGS       Comma-separated languages (default: ch_tra,en)
+  SAN5_EASYOCR_MIN_CONFIDENCE
+  SAN5_EASYOCR_GPU         Set to 1 to enable GPU
+"""
 
 from __future__ import annotations
 
@@ -7,12 +20,11 @@ import argparse
 import json
 import os
 import re
-import subprocess
 import sys
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-DEFAULT_IMAGE = "san5_screenshot.png"
+DEFAULT_IMAGE = os.environ.get("SAN5_SCREENSHOT", "screenshots/latest.png")
 DEFAULT_WIDTH = 1024
 DEFAULT_HEIGHT = 768
 DEFAULT_LANGS = ("ch_tra", "en")
@@ -27,18 +39,29 @@ class OcrTarget:
     confidence: float
 
 
+def workspace_root() -> Path:
+    return Path(__file__).resolve().parents[3]
+
+
+def run_capture(output: Path | None = None) -> None:
+    root = workspace_root()
+    os.chdir(root)
+    scripts = root / "skills/screenshot/scripts"
+    if str(scripts) not in sys.path:
+        sys.path.insert(0, str(scripts))
+    import san5_capture
+
+    argv: list[str] = [str(output)] if output is not None else []
+    print("[san5] capture -> easyocr...", file=sys.stderr)
+    rc = san5_capture.main(argv)
+    if rc != 0:
+        raise SystemExit(rc)
+
+
 def screen_size() -> tuple[int, int]:
     width = int(os.environ.get("SAN5_SCREEN_WIDTH", str(DEFAULT_WIDTH)))
     height = int(os.environ.get("SAN5_SCREEN_HEIGHT", str(DEFAULT_HEIGHT)))
     return width, height
-
-
-def capture_screenshot(path: str) -> None:
-    display = os.environ.get("SAN5_DISPLAY", ":99")
-    width, height = screen_size()
-    region = f"0,0,{width},{height}"
-    cmd = ["scrot", "-D", display, "-a", region, path]
-    subprocess.run(cmd, check=True)
 
 
 def parse_langs(raw: str | None) -> list[str]:
@@ -56,7 +79,9 @@ def clamp(value: int, lower: int, upper: int) -> int:
     return max(lower, min(upper, value))
 
 
-def bbox_to_target(bbox: list[list[float]], text: str, confidence: float, *, width: int, height: int) -> OcrTarget | None:
+def bbox_to_target(
+    bbox: list[list[float]], text: str, confidence: float, *, width: int, height: int
+) -> OcrTarget | None:
     label = text.strip()
     if not label:
         return None
@@ -146,7 +171,13 @@ def find_match(targets: list[OcrTarget], query: str | None) -> OcrTarget | None:
     return None if best is None else best[2]
 
 
-def summary_line(targets: list[OcrTarget], *, image_path: str, match: OcrTarget | None = None, query: str | None = None) -> str:
+def summary_line(
+    targets: list[OcrTarget],
+    *,
+    image_path: str,
+    match: OcrTarget | None = None,
+    query: str | None = None,
+) -> str:
     parts = [f"ocr_targets={len(targets)}", f"image={Path(image_path).name}"]
     if match is not None:
         parts.append(
@@ -160,7 +191,13 @@ def summary_line(targets: list[OcrTarget], *, image_path: str, match: OcrTarget 
     return " | ".join(parts)
 
 
-def describe_targets(targets: list[OcrTarget], *, image_path: str, match: OcrTarget | None = None, query: str | None = None) -> str:
+def describe_targets(
+    targets: list[OcrTarget],
+    *,
+    image_path: str,
+    match: OcrTarget | None = None,
+    query: str | None = None,
+) -> str:
     lines = [f"OCR found {len(targets)} text target(s) in {image_path}."]
     for target in targets:
         x1, y1, x2, y2 = target.bbox
@@ -199,20 +236,32 @@ def json_payload(
     }
 
 
-def main(argv: list[str] | None = None) -> int:
+def resolve_image_path(args: argparse.Namespace) -> str:
+    if args.no_capture:
+        return args.image or DEFAULT_IMAGE
+
+    if args.image is not None:
+        run_capture(Path(args.image))
+        return args.image
+
+    run_capture()
+    return DEFAULT_IMAGE
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Analyze a san5 screenshot with EasyOCR and return text coordinates."
+        description="Capture (default) and analyze a san5 screenshot with EasyOCR.",
     )
     parser.add_argument(
         "image",
         nargs="?",
-        default=DEFAULT_IMAGE,
-        help=f"PNG path (default: {DEFAULT_IMAGE})",
+        default=None,
+        help=f"PNG path for OCR; default after capture: {DEFAULT_IMAGE}",
     )
     parser.add_argument(
-        "--capture",
+        "--no-capture",
         action="store_true",
-        help="run scrot before OCR using the san5 display settings",
+        help="OCR an existing PNG only (no scrot)",
     )
     parser.add_argument(
         "--json",
@@ -245,25 +294,25 @@ def main(argv: list[str] | None = None) -> int:
         "--output",
         help="write the text or JSON output to a file",
     )
-    args = parser.parse_args(argv)
+    return parser.parse_args(argv)
 
-    if args.capture:
-        try:
-            capture_screenshot(args.image)
-        except FileNotFoundError:
-            print("error: scrot is not installed.", file=sys.stderr)
-            return 1
-        except subprocess.CalledProcessError as exc:
-            print(f"error: screenshot capture failed: {exc}", file=sys.stderr)
-            return 1
-    elif not Path(args.image).is_file():
-        print(f"error: image not found: {args.image}", file=sys.stderr)
-        print("hint: run with --capture or create the screenshot first", file=sys.stderr)
+
+def main(argv: list[str] | None = None) -> int:
+    os.chdir(workspace_root())
+    args = parse_args(argv)
+    image_path = resolve_image_path(args)
+
+    if not Path(image_path).is_file():
+        print(f"error: image not found: {image_path}", file=sys.stderr)
+        print(
+            "hint: run capture via san5_ocr.py (default) or skills/screenshot/scripts/san5_capture.py",
+            file=sys.stderr,
+        )
         return 1
 
     langs = parse_langs(args.langs)
     targets = read_targets(
-        args.image,
+        image_path,
         langs=langs,
         min_confidence=args.min_confidence,
         gpu=args.gpu,
@@ -274,7 +323,7 @@ def main(argv: list[str] | None = None) -> int:
         content = json.dumps(
             json_payload(
                 targets,
-                image_path=args.image,
+                image_path=image_path,
                 langs=langs,
                 min_confidence=args.min_confidence,
                 match=match,
@@ -286,13 +335,16 @@ def main(argv: list[str] | None = None) -> int:
     else:
         content = describe_targets(
             targets,
-            image_path=args.image,
+            image_path=image_path,
             match=match,
             query=args.match,
         )
 
     if args.output:
-        Path(args.output).write_text(content + ("\n" if not content.endswith("\n") else ""), encoding="utf-8")
+        Path(args.output).write_text(
+            content + ("\n" if not content.endswith("\n") else ""),
+            encoding="utf-8",
+        )
     else:
         print(content)
 

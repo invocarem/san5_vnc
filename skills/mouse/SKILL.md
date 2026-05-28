@@ -1,5 +1,5 @@
 ---
-name: dosbox-mouse
+name: mouse
 description: >-
   Move and click inside the DOSBox san5 window on the VNC display using
   window-relative coordinates (typically 1024×768). Use for mouse control,
@@ -7,21 +7,21 @@ description: >-
   after screenshot analysis.
 ---
 
-# DOSBox mouse control
+# san5 mouse control
 
-Script: `skills/dosbox-mouse/scripts/dosbox_mouse.py`
+Script: `skills/mouse/scripts/san5_mouse.py`
 
 Coordinates are **window-relative** (origin top-left of the DOSBox window), same as PNG pixels from `scrot`.
 
 ```bash
-python3 skills/dosbox-mouse/scripts/dosbox_mouse.py -h
+python3 skills/mouse/scripts/san5_mouse.py -h
 
-python3 skills/dosbox-mouse/scripts/dosbox_mouse.py -a move   -p X Y [--sync]
-python3 skills/dosbox-mouse/scripts/dosbox_mouse.py -a debug  [-v]
-python3 skills/dosbox-mouse/scripts/dosbox_mouse.py -a click
-python3 skills/dosbox-mouse/scripts/dosbox_mouse.py -a rclick
-python3 skills/dosbox-mouse/scripts/dosbox_mouse.py -a release
-python3 skills/dosbox-mouse/scripts/dosbox_mouse.py -a dismiss
+python3 skills/mouse/scripts/san5_mouse.py -a move   -p X Y [--sync]
+python3 skills/mouse/scripts/san5_mouse.py -a debug  [-v]
+python3 skills/mouse/scripts/san5_mouse.py -a click
+python3 skills/mouse/scripts/san5_mouse.py -a rclick
+python3 skills/mouse/scripts/san5_mouse.py -a release
+python3 skills/mouse/scripts/san5_mouse.py -a dismiss
 ```
 
 ## Concepts: sync, capture, release
@@ -65,15 +65,15 @@ After `-a release`, run `move --sync` → `click` again to re-capture before mor
 
 No separate click skill — the agent orchestrates:
 
-1. **Screenshot** — `scrot -D :99 -a 0,0,1024,768 san5_screenshot.png` (`skills/screenshot`)
-2. **Analyze** — native vision on the PNG, or `skills/minicpm-vision` (`san5_look.sh` / `--capture --json`) if the agent cannot see images. Use `recommended_click.use_click` from JSON.
+1. **Screenshot** — `./skills/screenshot/scripts/san5_capture.py` (`skills/screenshot`)
+2. **Analyze** — `skills/easyocr` (`san5_ocr.py` captures then OCR) for text labels, or native vision on the PNG. Use `recommended_click.click` from JSON.
 3. **Click** — use bbox from analysis: `cx = (x1+x2)//2`, `cy = (y1+y2)//2`, then move → debug → click
 
 ```bash
-python3 skills/dosbox-mouse/scripts/dosbox_mouse.py -a move -p CX CY --sync
+python3 skills/mouse/scripts/san5_mouse.py -a move -p CX CY --sync
 sleep 0.2
-python3 skills/dosbox-mouse/scripts/dosbox_mouse.py -a debug -v
-python3 skills/dosbox-mouse/scripts/dosbox_mouse.py -a click
+python3 skills/mouse/scripts/san5_mouse.py -a debug -v
+python3 skills/mouse/scripts/san5_mouse.py -a click
 ```
 
 4. **Screen verify** — capture again; retry if dialog still open or debug showed wrong position

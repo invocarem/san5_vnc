@@ -8,7 +8,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 X11VNC_SCRIPT="${WORKSPACE_ROOT}/skills/san5-x11vnc/scripts/x11vnc_start.sh"
 CONF="${SCRIPT_DIR}/san5-dosbox.conf"
-MOUSE_SCRIPT="${SAN5_MOUSE_SCRIPT:-${WORKSPACE_ROOT}/skills/dosbox-mouse/scripts/dosbox_mouse.py}"
+MOUSE_SCRIPT="${SAN5_MOUSE_SCRIPT:-${WORKSPACE_ROOT}/skills/mouse/scripts/san5_mouse.py}"
 GAME_DIR="${SAN5_GAME_DIR:-${HOME}/Games/san5}"
 
 export DISPLAY="${SAN5_DISPLAY:-:99}"

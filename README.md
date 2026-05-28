@@ -13,7 +13,7 @@ Run **san5** in DOSBox on virtual display `:99`, view and control over **VNC** (
 
 See `TOOLS.md`. Game files live under `~/Games/san5` (or `SAN5_GAME_DIR`).
 
-Optional local OCR tooling is managed with `uv` from the workspace root:
+Local OCR tooling is managed with `uv` from the workspace root:
 
 ```bash
 uv sync --group easyocr
@@ -34,9 +34,9 @@ cd ~/.openclaw/workspace
 
 # 4) First CD/確認 dialog — coords in skills/san5-ui/SKILL.md
 # 5) Mouse (1024×768 window coordinates)
-python3 skills/dosbox-mouse/scripts/dosbox_mouse.py -a move -p 400 323 --sync
-python3 skills/dosbox-mouse/scripts/dosbox_mouse.py -a debug -v
-python3 skills/dosbox-mouse/scripts/dosbox_mouse.py -a click
+python3 skills/mouse/scripts/san5_mouse.py -a move -p 400 323 --sync
+python3 skills/mouse/scripts/san5_mouse.py -a debug -v
+python3 skills/mouse/scripts/san5_mouse.py -a click
 ```
 
 ## Layout
@@ -58,44 +58,39 @@ python3 skills/dosbox-mouse/scripts/dosbox_mouse.py -a click
 │   │       └── san5-dosbox.conf
 │   ├── san5-ui/
 │   │   └── SKILL.md     # game UI coords (no scripts)
-│   ├── dosbox-mouse/
+│   ├── mouse/
 │   │   ├── SKILL.md
-│   │   └── scripts/dosbox_mouse.py
+│   │   └── scripts/san5_mouse.py
 │   ├── screenshot/
-│   │   └── SKILL.md
-│   ├── dosbox-easyocr/
 │   │   ├── SKILL.md
-│   │   └── scripts/
-│   │       ├── analyze_screenshot.py
-│   │       ├── bootstrap.sh
-│   │       └── san5_ocr.sh
-│   └── minicpm-vision/
+│   │   └── scripts/san5_capture.py
+│   └── easyocr/
 │       ├── SKILL.md
 │       └── scripts/
-│           ├── analyze_screenshot.py
-│           └── san5_look.sh
+│           ├── bootstrap.sh
+│           └── san5_ocr.py
 ```
 
-Vision play: capture → analyze (native vision, `dosbox-easyocr`, or `minicpm-vision`) → `dosbox_mouse` move → debug → click (see `skills/dosbox-mouse/SKILL.md`). Known coords: `skills/san5-ui/SKILL.md`.
+Vision play: `san5_capture.py` / `san5_ocr.py` → `san5_mouse` move → debug → click. Verified coords: `skills/san5-ui/SKILL.md`.
 
 ## Local OCR
 
-Use `dosbox-easyocr` when the target is visible text on screen:
+Use `easyocr` when the target is visible text on screen:
 
 ```bash
-./skills/dosbox-easyocr/scripts/san5_ocr.sh
-./skills/dosbox-easyocr/scripts/san5_ocr.sh san5_screenshot.png --match 確認
+uv run --group easyocr python skills/easyocr/scripts/san5_ocr.py --json
+uv run --group easyocr python skills/easyocr/scripts/san5_ocr.py --json --match 確認
 ```
 
-`--json` output includes OCR `targets[]` plus `recommended_click` when `--match` succeeds.
+`--json` output includes OCR `targets[]` plus `recommended_click` when `--match` succeeds. Verify with `debug -v` before clicking; promote good coords to `san5-ui`.
 
-## `dosbox_mouse.py`
+## `san5_mouse.py`
 
-Full CLI and env vars are documented in `skills/dosbox-mouse/SKILL.md`.
+Full CLI and env vars are documented in `skills/mouse/SKILL.md`.
 
 ```bash
-python3 skills/dosbox-mouse/scripts/dosbox_mouse.py -h
-python3 skills/dosbox-mouse/scripts/dosbox_mouse.py -a debug -v
+python3 skills/mouse/scripts/san5_mouse.py -h
+python3 skills/mouse/scripts/san5_mouse.py -a debug -v
 ```
 
 ## Cursor visibility (VNC)
@@ -111,6 +106,7 @@ python3 skills/dosbox-mouse/scripts/dosbox_mouse.py -a debug -v
 | Wrong position | `-a debug`; restart stack so DOSBox is at 0,0 1024×768 |
 | DOSBox not found | `export SAN5_DISPLAY=:99`; start VNC + game |
 | Stuck capture | `-a release`, then move+click again or restart DOSBox |
+| OCR wrong coords | Re-run `san5_ocr.py --json`; verify with `debug -v`; update `san5-ui` when correct |
 
 ## Stopping
 
