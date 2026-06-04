@@ -35,10 +35,14 @@ skills/
 ├── screenshot/             # Framebuffer capture (scrot)
 │   ├── SKILL.md
 │   └── scripts/san5_capture.py
-└── easyocr/         # Capture + local OCR (san5_ocr.py)
+├── easyocr/         # Capture + local OCR (san5_ocr.py)
+│   └── scripts/
+│       ├── bootstrap.sh
+│       └── san5_ocr.py
+└── san5-vl-ground/  # Capture + Qwen3-VL /v1/ground (san5_vl_ground.py)
     └── scripts/
         ├── bootstrap.sh
-        └── san5_ocr.py
+        └── san5_vl_ground.py
 ```
 
 ## Common Commands
@@ -124,3 +128,6 @@ Use OCR for text-heavy menus and dialogs. Promote verified coords to `skills/san
 | `SAN5_EASYOCR_LANGS` | `ch_tra,en` | Local OCR languages |
 | `SAN5_EASYOCR_MIN_CONFIDENCE` | `0.5` | OCR result threshold |
 | `SAN5_EASYOCR_GPU` | `0` | Set `1` to enable EasyOCR GPU mode |
+| `SAN5_GROUND_BASE_URL` | `http://127.0.0.1:5080` | Qwen3-VL Grounding API root |
+| `SAN5_GROUND_PROMPT` | (built-in) | Default `/v1/ground` prompt |
+| `SAN5_GROUND_TIMEOUT` | `180` | HTTP timeout (seconds) |

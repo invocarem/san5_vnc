@@ -12,6 +12,7 @@ OpenClaw workspace for **Romance of the Three Kingdoms V** on VNC + DOSBox.
 | `skills/mouse/` | Pointer move/click via `san5_mouse.py` |
 | `skills/screenshot/` | Capture framebuffer with `scrot` for vision |
 | `skills/easyocr/` | Local OCR for visible text labels in screenshots |
+| `skills/san5-vl-ground/` | Qwen3-VL Grounding API (`san5_vl_ground.py`, `/v1/ground`) |
 
 Environment-specific values (game path, VNC host, ports) live in **`TOOLS.md`**, not here.
 
@@ -52,7 +53,18 @@ uv run --group easyocr python skills/easyocr/scripts/san5_ocr.py --json --match 
 
 Use `recommended_click.click` from JSON when `--match` succeeds, then **always** verify with `san5_mouse -a debug -v` before clicking. Promote verified coords to `skills/san5-ui/SKILL.md`.
 
-For screens without readable text, use **san5-ui** anchors or agent native vision on the PNG if available.
+For screens without readable text, use **san5-vl-ground** or **san5-ui** anchors; fall back to agent native vision on the PNG if available.
+
+### Remote VL ground (san5-vl-ground)
+
+When EasyOCR fails or the UI is non-text (map chips, icons), run:
+
+```bash
+uv run --group san5-vl-ground python skills/san5-vl-ground/scripts/san5_vl_ground.py --json
+uv run --group san5-vl-ground python skills/san5-vl-ground/scripts/san5_vl_ground.py --json --match 確認
+```
+
+Set `SAN5_GROUND_BASE_URL` per `TOOLS.md` (direct to spark1 `:5080`, not LiteLLM). Same click workflow as EasyOCR (`recommended_click` → `debug -v` → click).
 
 ### Visibility — never go silent
 

@@ -1,0 +1,41 @@
+{
+  "resolution": [1024, 768],
+  "screens": {
+    "menu_bar": {
+      "detect": ["環境", "儲存", "載入", "編輯", "結束"],
+      "notes": "Horizontal menu bar opened by 功能. Items are evenly spaced.",
+      "buttons": {
+        "環境": [450, 158],
+        "儲存": [485, 158],
+        "載入": [520, 158],
+        "編輯": [555, 158],
+        "結束": [590, 158]
+      }
+    },
+    "save_dialog": {
+      "detect": ["劇本", "堇卓"],
+      "notes": "Save/Load dialog from 儲存/載入 menu. Slots are a vertical list, ~50px apart each.",
+      "buttons": {
+        "slot_1": [520, 273],
+        "slot_2": [520, 323],
+        "slot_3": [520, 373],
+        "slot_4": [520, 423],
+        "slot_5": [520, 473],
+        "slot_6": [520, 523]
+      }
+    },
+    "main": {
+      "detect": ["軍糧", "189年"],
+      "notes": "Overworld map; top-right command bar row at y≈215. EasyOCR misses these chips — use buttons below.",
+      "buttons": {
+        "移動": [650, 215],
+        "戰爭": [720, 215],
+        "君主": [760, 215],
+        "擔當": [810, 215],
+        "情報": [850, 215],
+        "功能": [890, 215],
+        "休息": [940, 215]
+      }
+    }
+  }
+}

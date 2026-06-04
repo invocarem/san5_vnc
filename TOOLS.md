@@ -61,3 +61,24 @@ Coordinates are 1024×768 from origin (0,0). Prefer EasyOCR for text labels; ver
 | GPU | `SAN5_EASYOCR_GPU=1` to enable |
 
 Use OCR for text-heavy dialogs and menus. For non-text UI, add anchors to `skills/san5-ui/SKILL.md` or use agent native vision on `screenshots/latest.png` when available.
+
+## Remote VL ground (Qwen3-VL Grounding API)
+
+| Item | Value |
+|------|-------|
+| Server root | `http://100.109.56.33:5080` or `http://spark1:5080` — `SAN5_GROUND_BASE_URL` |
+| Upload | `POST /v1/ground` (multipart `image` + `prompt`) |
+| Server-local path | `POST /v1/ground/path` — `--ground-path` (PNG on server host) |
+| Health | `GET /health` |
+| Docs | `{SAN5_GROUND_BASE_URL}/docs` |
+| Sync deps | `uv sync --group san5-vl-ground` |
+| Capture + ground | `uv run --group san5-vl-ground python skills/san5-vl-ground/scripts/san5_vl_ground.py --json` |
+| Match label | `…/san5_vl_ground.py --json --match 確認` |
+| Ground only (PNG exists) | `…/san5_vl_ground.py --no-capture --json` |
+
+Not OpenAI-compatible — do not use LiteLLM for this backend.
+
+```bash
+export SAN5_GROUND_BASE_URL=http://100.109.56.33:5080
+curl -sS "$SAN5_GROUND_BASE_URL/health"
+```

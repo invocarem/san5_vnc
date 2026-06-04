@@ -16,7 +16,7 @@ See `TOOLS.md`. Game files live under `~/Games/san5` (or `SAN5_GAME_DIR`).
 Local OCR tooling is managed with `uv` from the workspace root:
 
 ```bash
-uv sync --group easyocr
+uv sync --group easyocr --group san5-vl-ground
 ```
 
 ## Quick start
@@ -64,14 +64,13 @@ python3 skills/mouse/scripts/san5_mouse.py -a click
 │   ├── screenshot/
 │   │   ├── SKILL.md
 │   │   └── scripts/san5_capture.py
-│   └── easyocr/
-│       ├── SKILL.md
-│       └── scripts/
-│           ├── bootstrap.sh
-│           └── san5_ocr.py
+│   ├── easyocr/
+│   │   └── scripts/san5_ocr.py
+│   └── san5-vl-ground/
+│       └── scripts/san5_vl_ground.py
 ```
 
-Vision play: `san5_capture.py` / `san5_ocr.py` → `san5_mouse` move → debug → click. Verified coords: `skills/san5-ui/SKILL.md`.
+Vision play: `san5_capture.py` → `san5_ocr.py` or `san5_vl_ground.py` → `san5_mouse` move → debug → click. Verified coords: `skills/san5-ui/SKILL.md`.
 
 ## Local OCR
 
@@ -83,6 +82,18 @@ uv run --group easyocr python skills/easyocr/scripts/san5_ocr.py --json --match 
 ```
 
 `--json` output includes OCR `targets[]` plus `recommended_click` when `--match` succeeds. Verify with `debug -v` before clicking; promote good coords to `san5-ui`.
+
+## VL ground (Qwen3-VL `/v1/ground`)
+
+Direct to the Grounding API on spark1 (not LiteLLM):
+
+```bash
+export SAN5_GROUND_BASE_URL=http://100.109.56.33:5080
+uv run --group san5-vl-ground python skills/san5-vl-ground/scripts/san5_vl_ground.py --json
+uv run --group san5-vl-ground python skills/san5-vl-ground/scripts/san5_vl_ground.py --json --match 確認
+```
+
+See `skills/san5-vl-ground/SKILL.md`.
 
 ## `san5_mouse.py`
 

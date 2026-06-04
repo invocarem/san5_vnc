@@ -9,3 +9,6 @@ dependencies = []
 easyocr = [
     "easyocr",
 ]
+san5-vl-ground = [
+    "httpx>=0.27",
+]
